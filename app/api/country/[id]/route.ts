@@ -15,10 +15,10 @@ interface Country {
 // GET: Fetch a single country by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id;
+    const { id } = await params;
 
     const countries = await callFunction<Country>({
       functionName: 'public."FetchCountries"',
@@ -61,10 +61,10 @@ export async function GET(
 // PUT: Update a country
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id;
+    const { id } = await params;
     const body = await request.json();
     const { name, isoCode, currencyCode, countryCode, isActive } = body;
 
@@ -135,10 +135,10 @@ export async function PUT(
 // DELETE: Delete a country
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id;
+    const { id } = await params;
 
     await queryDB({
       query: `DELETE FROM public."Country" WHERE "Id" = $1`,

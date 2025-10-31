@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { queryDB, callFunction } from "@/utils/db";
+import { queryDB, callFunction, callProcedure } from "@/utils/db";
 
-interface Currency {
+interface Broker {
   Id: number;
   Name: string;
-  CurrencyCode: string;
-  CurrencySymbol: string;
+  ShortCode: string;
+  IsBroker: boolean;
+  IsDiscountBroker: boolean;
   IsActive: boolean;
   CreatedOn?: number;
   UpdatedOn?: number;
 }
 
-// GET: Fetch a single currency by ID using FetchCurrencies function
+// GET: Fetch a single broker by ID using FetchStockBroker function
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -20,17 +21,19 @@ export async function GET(
     const { id: idStr } = await params;
     const id = parseInt(idStr);
 
-    const currencies = await callFunction<Currency>({
-      functionName: 'public."FetchCurrencies"',
+    const brokers = await callFunction<Broker>({
+      functionName: 'public."FetchStockBroker"',
       dbName: process.env.PG_DEFAULT_DB,
-      params: [id, null, null, null],
+      params: [null, null],
     });
 
-    if (currencies.length === 0) {
+    const broker = brokers.find((b) => b.Id === id);
+
+    if (!broker) {
       return NextResponse.json(
         {
           success: false,
-          error: "Currency not found",
+          error: "Broker not found",
         },
         { status: 404 }
       );
@@ -39,16 +42,16 @@ export async function GET(
     return NextResponse.json(
       {
         success: true,
-        data: currencies[0],
+        data: broker,
       },
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error fetching currency:", error);
+    console.error("Error fetching broker:", error);
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to fetch currency",
+        error: "Failed to fetch broker",
         message: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
@@ -56,51 +59,49 @@ export async function GET(
   }
 }
 
-// PUT: Update a currency
+// PUT: Update a broker using UpdateStockBroker procedure
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: idStr } = await params;
+    const id = parseInt(idStr);
     const body = await request.json();
-    const { name, currencyCode, currencySymbol, isActive } = body;
+    const { name, shortCode, isBroker, isDiscountBroker, isActive } = body;
 
     // Validation
-    if (!name || !currencyCode || !currencySymbol) {
+    if (!name || !shortCode) {
       return NextResponse.json(
         {
           success: false,
           error: "Missing required fields",
-          message: "Name, currencyCode, and currencySymbol are required",
+          message: "Name and shortCode are required",
         },
         { status: 400 }
       );
     }
 
-    await queryDB({
-      query: `
-        UPDATE public."CurrencyMaster"
-        SET "Name" = $1, "CurrencyCode" = $2, "CurrencySymbol" = $3, "IsActive" = $4, "UpdatedAt" = NOW()
-        WHERE "Id" = $5
-      `,
+    // Call the UpdateStockBroker procedure
+    await callProcedure({
+      procedureName: 'public."UpdateStockBroker"',
       dbName: process.env.PG_DEFAULT_DB,
-      params: [name, currencyCode, currencySymbol, isActive, id],
+      params: [id, name, shortCode, isBroker, isDiscountBroker, isActive],
     });
 
     return NextResponse.json(
       {
         success: true,
-        message: "Currency updated successfully",
+        message: "Broker updated successfully",
       },
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error updating currency:", error);
+    console.error("Error updating broker:", error);
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to update currency",
+        error: "Failed to update broker",
         message: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
@@ -108,7 +109,7 @@ export async function PUT(
   }
 }
 
-// DELETE: Delete a currency
+// DELETE: Delete a broker
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -117,7 +118,7 @@ export async function DELETE(
     const { id } = await params;
 
     await queryDB({
-      query: `DELETE FROM public."CurrencyMaster" WHERE "Id" = $1`,
+      query: `DELETE FROM public."StockBrokers" WHERE "Id" = $1`,
       dbName: process.env.PG_DEFAULT_DB,
       params: [id],
     });
@@ -125,16 +126,16 @@ export async function DELETE(
     return NextResponse.json(
       {
         success: true,
-        message: "Currency deleted successfully",
+        message: "Broker deleted successfully",
       },
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error deleting currency:", error);
+    console.error("Error deleting broker:", error);
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to delete currency",
+        error: "Failed to delete broker",
         message: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
