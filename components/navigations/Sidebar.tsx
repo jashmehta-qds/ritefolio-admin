@@ -20,6 +20,7 @@ import {
   FiLogOut,
   FiPieChart,
   FiBriefcase,
+  FiActivity,
 } from "react-icons/fi";
 import { LiaExchangeAltSolid } from "react-icons/lia";
 
@@ -76,6 +77,22 @@ const navigationConfig: NavigationConfig = [
         label: "Type",
         href: "/investment/type",
         icon: <FiFileText className="text-lg" />,
+      },
+    ],
+  },
+  {
+    label: "Corporate Action",
+    icon: <FiActivity className="text-xl" />,
+    items: [
+      {
+        label: "Types",
+        href: "/corporate-action/types",
+        icon: <FiFileText className="text-lg" />,
+      },
+      {
+        label: "Records",
+        href: "/corporate-action/records",
+        icon: <FiFolder className="text-lg" />,
       },
     ],
   },
