@@ -88,3 +88,89 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// POST: Add a new corporate action with details using AddCorporateAction procedure
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const {
+      sourceStockId,
+      corpActionTypeId,
+      exDate,
+      recordDate,
+      allotmentDate,
+      details,
+      remark,
+    } = body;
+
+    // Validate required fields
+    if (!sourceStockId || !corpActionTypeId || !exDate || !recordDate || !details) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Missing required fields",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate details array
+    if (!Array.isArray(details) || details.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "At least one detail is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Transform details to match the procedure's expected format
+    const formattedDetails = details.map((detail: any) => ({
+      target_stock_id: detail.targetStockId || null,
+      ratio_quantity_held: detail.ratioQuantityHeld,
+      ratio_quantity_entitled: detail.ratioQuantityEntitled,
+      ratio_book_value_held: detail.ratioBookValueHeld || null,
+      ratio_book_value_entitled: detail.ratioBookValueEntitled || null,
+      target_sale_row: detail.targetSaleRow || false,
+      remark: detail.remark || null,
+    }));
+
+    // Call the AddCorporateAction procedure
+    const result = await callFunction<{ p_added_row_id: string }>({
+      functionName: 'public."AddCorporateAction"',
+      dbName: process.env.PG_DEFAULT_DB,
+      params: [
+        null, // OUT parameter placeholder
+        sourceStockId,
+        corpActionTypeId,
+        exDate,
+        recordDate,
+        allotmentDate,
+        JSON.stringify(formattedDetails),
+        remark || null,
+      ],
+    });
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          id: result[0]?.p_added_row_id,
+        },
+        message: "Corporate action added successfully",
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("Error adding corporate action:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to add corporate action",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
+}

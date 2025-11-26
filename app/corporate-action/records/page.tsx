@@ -24,8 +24,9 @@ import { Select, SelectItem } from "@heroui/select";
 import { Textarea } from "@heroui/input";
 import { Switch } from "@heroui/switch";
 import { Tooltip } from "@heroui/tooltip";
-import { FiEye, FiEdit2 } from "react-icons/fi";
+import { FiEye, FiEdit2, FiPlus, FiTrash2, FiDownload } from "react-icons/fi";
 import { createClient } from "@/lib/supabase/client";
+import { v4 as uuidv4 } from "uuid";
 import axiosInstance from "@/lib/axios";
 import { formatEpochDate, dateToEpoch } from "@/utils/date";
 import { StockAutocomplete, Stock } from "@/components/StockAutocomplete";
@@ -59,6 +60,7 @@ interface CorporateActionDetail {
   RatioBookValueHeld: number | null;
   RatioBookValueEntitled: number | null;
   TargetSaleRow: boolean | null;
+  ReferenceDocUrl: string | null;
   Remark: string | null;
   IsActive: boolean;
   CreatedOn: number;
@@ -70,6 +72,27 @@ interface CorporateActionType {
   Code: string;
   Name: string;
   IsActive: boolean;
+}
+
+interface NewDetailRow {
+  tempId: string;
+  targetStockId: string | null;
+  ratioQuantityHeld: number;
+  ratioQuantityEntitled: number;
+  ratioBookValueHeld: number | null;
+  ratioBookValueEntitled: number | null;
+  targetSaleRow: boolean;
+  remark: string | null;
+}
+
+interface NewCorporateAction {
+  sourceStockId: string;
+  corpActionTypeId: number;
+  exDate: number;
+  recordDate: number;
+  allotmentDate: number | null;
+  remark: string | null;
+  details: NewDetailRow[];
 }
 
 export default function CorporateActionRecordsPage() {
@@ -99,6 +122,21 @@ export default function CorporateActionRecordsPage() {
   const [initialStockName, setInitialStockName] = useState<string>("");
   const [initialTargetStockName, setInitialTargetStockName] =
     useState<string>("");
+
+  // Add states
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newAction, setNewAction] = useState<NewCorporateAction>({
+    sourceStockId: "",
+    corpActionTypeId: 0,
+    exDate: 0,
+    recordDate: 0,
+    allotmentDate: null,
+    remark: null,
+    details: [],
+  });
+  const [targetStockNames, setTargetStockNames] = useState<
+    Record<string, string>
+  >({});
 
   const router = useRouter();
   const supabase = createClient();
@@ -205,6 +243,16 @@ export default function CorporateActionRecordsPage() {
     setIsDetailsModalOpen(false);
     setSelectedRecord(null);
     setDetails([]);
+  };
+
+  const handleDownloadReferenceDoc = (url: string, detailId: string) => {
+    try {
+      // Open the URL in a new tab to download
+      window.open(url, "_blank");
+    } catch (error) {
+      console.error("Error downloading reference document:", error);
+      showToast("Error downloading reference document", "error");
+    }
   };
 
   // Edit Record Handlers
@@ -335,6 +383,127 @@ export default function CorporateActionRecordsPage() {
     }
   };
 
+  // Add Corporate Action Handlers
+  const handleOpenAddModal = () => {
+    // Reset form
+    setNewAction({
+      sourceStockId: "",
+      corpActionTypeId: 0,
+      exDate: 0,
+      recordDate: 0,
+      allotmentDate: null,
+      remark: null,
+      details: [],
+    });
+    setInitialStockName("");
+    setTargetStockNames({});
+    setIsAddModalOpen(true);
+  };
+
+  const handleAddDetailRow = () => {
+    const newDetail: NewDetailRow = {
+      tempId: uuidv4(),
+      targetStockId: null,
+      ratioQuantityHeld: 0,
+      ratioQuantityEntitled: 0,
+      ratioBookValueHeld: null,
+      ratioBookValueEntitled: null,
+      targetSaleRow: false,
+      remark: null,
+    };
+    setNewAction({
+      ...newAction,
+      details: [...newAction.details, newDetail],
+    });
+  };
+
+  const handleRemoveDetailRow = (tempId: string) => {
+    setNewAction({
+      ...newAction,
+      details: newAction.details.filter((d) => d.tempId !== tempId),
+    });
+    // Clean up stock name mapping
+    const { [tempId]: _, ...rest } = targetStockNames;
+    setTargetStockNames(rest);
+  };
+
+  const handleUpdateDetailRow = (
+    tempId: string,
+    field: keyof NewDetailRow,
+    value: any
+  ) => {
+    setNewAction({
+      ...newAction,
+      details: newAction.details.map((d) =>
+        d.tempId === tempId ? { ...d, [field]: value } : d
+      ),
+    });
+  };
+
+  const handleSaveNewAction = async () => {
+    try {
+      // Validate required fields
+      if (
+        !newAction.sourceStockId ||
+        !newAction.corpActionTypeId ||
+        !newAction.exDate ||
+        !newAction.recordDate
+      ) {
+        showToast("Please fill in all required fields", "error");
+        return;
+      }
+
+      if (newAction.details.length === 0) {
+        showToast("Please add at least one detail row", "error");
+        return;
+      }
+
+      // Validate each detail row
+      for (const detail of newAction.details) {
+        if (!detail.ratioQuantityHeld || !detail.ratioQuantityEntitled) {
+          showToast(
+            "Please fill in ratio quantities for all detail rows",
+            "error"
+          );
+          return;
+        }
+      }
+
+      setIsSaving(true);
+
+      const response = await axiosInstance.post("/corporate-action/records", {
+        sourceStockId: newAction.sourceStockId,
+        corpActionTypeId: newAction.corpActionTypeId,
+        exDate: newAction.exDate,
+        recordDate: newAction.recordDate,
+        allotmentDate: newAction.allotmentDate,
+        remark: newAction.remark,
+        details: newAction.details.map((d) => ({
+          targetStockId: d.targetStockId,
+          ratioQuantityHeld: d.ratioQuantityHeld,
+          ratioQuantityEntitled: d.ratioQuantityEntitled,
+          ratioBookValueHeld: d.ratioBookValueHeld,
+          ratioBookValueEntitled: d.ratioBookValueEntitled,
+          targetSaleRow: d.targetSaleRow,
+          remark: d.remark,
+        })),
+      });
+
+      if (response.data.success) {
+        showToast("Corporate action added successfully", "success");
+        setIsAddModalOpen(false);
+        await fetchRecords();
+      } else {
+        showToast("Failed to add corporate action", "error");
+      }
+    } catch (error) {
+      console.error("Error adding corporate action:", error);
+      showToast("Error adding corporate action", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -359,6 +528,13 @@ export default function CorporateActionRecordsPage() {
               View corporate action records and their details
             </p>
           </div>
+          <Button
+            color="primary"
+            startContent={<FiPlus />}
+            onPress={handleOpenAddModal}
+          >
+            Add Corporate Action
+          </Button>
         </div>
 
         {/* Records Table */}
@@ -582,14 +758,35 @@ export default function CorporateActionRecordsPage() {
                                 </Chip>
                               </TableCell>
                               <TableCell>
-                                <Button
-                                  size="sm"
-                                  variant="light"
-                                  isIconOnly
-                                  onPress={() => handleEditDetail(detail)}
-                                >
-                                  <FiEdit2 />
-                                </Button>
+                                <div className="flex gap-2">
+                                  {detail.ReferenceDocUrl && (
+                                    <Tooltip content="Download Reference Document">
+                                      <Button
+                                        size="sm"
+                                        variant="light"
+                                        isIconOnly
+                                        onPress={() =>
+                                          handleDownloadReferenceDoc(
+                                            detail.ReferenceDocUrl!,
+                                            detail.Id
+                                          )
+                                        }
+                                      >
+                                        <FiDownload />
+                                      </Button>
+                                    </Tooltip>
+                                  )}
+                                  <Tooltip content="Edit Detail">
+                                    <Button
+                                      size="sm"
+                                      variant="light"
+                                      isIconOnly
+                                      onPress={() => handleEditDetail(detail)}
+                                    >
+                                      <FiEdit2 />
+                                    </Button>
+                                  </Tooltip>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -892,6 +1089,299 @@ export default function CorporateActionRecordsPage() {
                 isLoading={isSaving}
               >
                 Save Changes
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        {/* Add Corporate Action Modal */}
+        <Modal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          size="5xl"
+          scrollBehavior="inside"
+        >
+          <ModalContent>
+            <ModalHeader>Add New Corporate Action</ModalHeader>
+            <ModalBody>
+              <div className="space-y-6">
+                {/* Record Information */}
+                <div className="space-y-4">
+                  <StockAutocomplete
+                    name="sourceStock"
+                    label="Source Stock"
+                    placeholder="Search by stock name, symbol, ISIN, or BSE code"
+                    value={newAction.sourceStockId}
+                    onSelectionChange={(stockId, stock) => {
+                      if (stockId && stock) {
+                        setNewAction({
+                          ...newAction,
+                          sourceStockId: stockId,
+                        });
+                        setInitialStockName(stock.Name);
+                      }
+                    }}
+                    initialStockName={initialStockName}
+                    isRequired
+                  />
+
+                  <Select
+                    label="Corporate Action Type"
+                    placeholder="Select corporate action type"
+                    selectedKeys={
+                      newAction.corpActionTypeId
+                        ? [newAction.corpActionTypeId.toString()]
+                        : []
+                    }
+                    onSelectionChange={(keys) => {
+                      const value = Array.from(keys)[0] as string;
+                      setNewAction({
+                        ...newAction,
+                        corpActionTypeId: parseInt(value),
+                      });
+                    }}
+                    isRequired
+                  >
+                    {corporateActionTypes.map((type) => (
+                      <SelectItem key={type.Id.toString()}>
+                        {type.Name}
+                      </SelectItem>
+                    ))}
+                  </Select>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <Input
+                      label="Ex Date"
+                      type="date"
+                      onValueChange={(value) => {
+                        const date = new Date(value);
+                        setNewAction({
+                          ...newAction,
+                          exDate: dateToEpoch(date),
+                        });
+                      }}
+                      isRequired
+                    />
+
+                    <Input
+                      label="Record Date"
+                      type="date"
+                      onValueChange={(value) => {
+                        const date = new Date(value);
+                        setNewAction({
+                          ...newAction,
+                          recordDate: dateToEpoch(date),
+                        });
+                      }}
+                      isRequired
+                    />
+
+                    <Input
+                      label="Allotment Date"
+                      type="date"
+                      onValueChange={(value) => {
+                        const date = value ? new Date(value) : null;
+                        setNewAction({
+                          ...newAction,
+                          allotmentDate: date ? dateToEpoch(date) : null,
+                        });
+                      }}
+                    />
+                  </div>
+
+                  <Textarea
+                    label="Remark"
+                    placeholder="Enter any remarks"
+                    onValueChange={(value) =>
+                      setNewAction({ ...newAction, remark: value || null })
+                    }
+                  />
+                </div>
+
+                {/* Details Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Action Details</h3>
+                    <Button
+                      size="sm"
+                      color="primary"
+                      variant="bordered"
+                      startContent={<FiPlus />}
+                      onPress={handleAddDetailRow}
+                    >
+                      Add Detail Row
+                    </Button>
+                  </div>
+
+                  {newAction.details.length === 0 ? (
+                    <div className="rounded-lg border-2 border-dashed border-default-300 p-8 text-center text-default-500">
+                      No detail rows added. Click "Add Detail Row" to add the
+                      first row.
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {newAction.details.map((detail, index) => (
+                        <div
+                          key={detail.tempId}
+                          className="space-y-4 rounded-lg border border-default-200 p-4"
+                        >
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium">
+                              Detail Row {index + 1}
+                            </h4>
+                            <Button
+                              size="sm"
+                              color="danger"
+                              variant="light"
+                              isIconOnly
+                              onPress={() =>
+                                handleRemoveDetailRow(detail.tempId)
+                              }
+                            >
+                              <FiTrash2 />
+                            </Button>
+                          </div>
+
+                          <StockAutocomplete
+                            name={`targetStock-${detail.tempId}`}
+                            label="Target Stock (Optional)"
+                            placeholder="Search by stock name, symbol, ISIN, or BSE code"
+                            value={detail.targetStockId || ""}
+                            onSelectionChange={(stockId, stock) => {
+                              if (stock) {
+                                handleUpdateDetailRow(
+                                  detail.tempId,
+                                  "targetStockId",
+                                  stockId
+                                );
+                                setTargetStockNames({
+                                  ...targetStockNames,
+                                  [detail.tempId]: stock.Name,
+                                });
+                              } else {
+                                handleUpdateDetailRow(
+                                  detail.tempId,
+                                  "targetStockId",
+                                  null
+                                );
+                                const { [detail.tempId]: _, ...rest } =
+                                  targetStockNames;
+                                setTargetStockNames(rest);
+                              }
+                            }}
+                            initialStockName={
+                              targetStockNames[detail.tempId] || ""
+                            }
+                          />
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <Input
+                              label="Ratio Quantity Held"
+                              type="number"
+                              step="0.0001"
+                              value={detail.ratioQuantityHeld.toString()}
+                              onValueChange={(value) =>
+                                handleUpdateDetailRow(
+                                  detail.tempId,
+                                  "ratioQuantityHeld",
+                                  parseFloat(value) || 0
+                                )
+                              }
+                              isRequired
+                            />
+
+                            <Input
+                              label="Ratio Quantity Entitled"
+                              type="number"
+                              step="0.0001"
+                              value={detail.ratioQuantityEntitled.toString()}
+                              onValueChange={(value) =>
+                                handleUpdateDetailRow(
+                                  detail.tempId,
+                                  "ratioQuantityEntitled",
+                                  parseFloat(value) || 0
+                                )
+                              }
+                              isRequired
+                            />
+
+                            <Input
+                              label="Ratio Book Value Held"
+                              type="number"
+                              step="0.0001"
+                              value={
+                                detail.ratioBookValueHeld?.toString() || ""
+                              }
+                              onValueChange={(value) =>
+                                handleUpdateDetailRow(
+                                  detail.tempId,
+                                  "ratioBookValueHeld",
+                                  value ? parseFloat(value) : null
+                                )
+                              }
+                            />
+
+                            <Input
+                              label="Ratio Book Value Entitled"
+                              type="number"
+                              step="0.0001"
+                              value={
+                                detail.ratioBookValueEntitled?.toString() || ""
+                              }
+                              onValueChange={(value) =>
+                                handleUpdateDetailRow(
+                                  detail.tempId,
+                                  "ratioBookValueEntitled",
+                                  value ? parseFloat(value) : null
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <Switch
+                              isSelected={detail.targetSaleRow}
+                              onValueChange={(value) =>
+                                handleUpdateDetailRow(
+                                  detail.tempId,
+                                  "targetSaleRow",
+                                  value
+                                )
+                              }
+                            >
+                              Target Sale Row
+                            </Switch>
+                          </div>
+
+                          <Textarea
+                            label="Detail Remark"
+                            placeholder="Enter any remarks for this detail"
+                            value={detail.remark || ""}
+                            onValueChange={(value) =>
+                              handleUpdateDetailRow(
+                                detail.tempId,
+                                "remark",
+                                value || null
+                              )
+                            }
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="light" onPress={() => setIsAddModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                color="primary"
+                onPress={handleSaveNewAction}
+                isLoading={isSaving}
+              >
+                Save Corporate Action
               </Button>
             </ModalFooter>
           </ModalContent>
