@@ -21,6 +21,7 @@ import {
   FiPieChart,
   FiBriefcase,
   FiActivity,
+  FiTrendingUp,
 } from "react-icons/fi";
 import { LiaExchangeAltSolid } from "react-icons/lia";
 
@@ -81,6 +82,27 @@ const navigationConfig: NavigationConfig = [
     ],
   },
   {
+    label: "Stocks",
+    icon: <FiTrendingUp className="text-xl" />,
+    items: [
+      {
+        label: "Listed",
+        href: "/stocks/listed",
+        icon: <FiFileText className="text-lg" />,
+      },
+      {
+        label: "UnListed",
+        href: "/stocks/unlisted",
+        icon: <FiFolder className="text-lg" />,
+      },
+      {
+        label: "Staging",
+        href: "/stocks/staging",
+        icon: <FiTool className="text-lg" />,
+      },
+    ],
+  },
+  {
     label: "Corporate Action",
     icon: <FiActivity className="text-xl" />,
     items: [
@@ -93,22 +115,6 @@ const navigationConfig: NavigationConfig = [
         label: "Records",
         href: "/corporate-action/records",
         icon: <FiFolder className="text-lg" />,
-      },
-    ],
-  },
-  {
-    label: "System",
-    icon: <FiTool className="text-xl" />,
-    items: [
-      {
-        label: "Settings",
-        href: "/dashboard/settings",
-        icon: <FiSettings className="text-lg" />,
-      },
-      {
-        label: "Security",
-        href: "/dashboard/security",
-        icon: <FiShield className="text-lg" />,
       },
     ],
   },
