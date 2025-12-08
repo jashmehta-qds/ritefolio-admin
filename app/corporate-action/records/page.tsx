@@ -24,7 +24,8 @@ import { Select, SelectItem } from "@heroui/select";
 import { Textarea } from "@heroui/input";
 import { Switch } from "@heroui/switch";
 import { Tooltip } from "@heroui/tooltip";
-import { FiEye, FiEdit2, FiPlus, FiTrash2, FiDownload } from "react-icons/fi";
+import { Pagination } from "@heroui/pagination";
+import { FiEye, FiEdit2, FiPlus, FiTrash2, FiDownload, FiSearch, FiX } from "react-icons/fi";
 import { createClient } from "@/lib/supabase/client";
 import { v4 as uuidv4 } from "uuid";
 import axiosInstance from "@/lib/axios";
@@ -95,6 +96,15 @@ interface NewCorporateAction {
   details: NewDetailRow[];
 }
 
+interface PaginationInfo {
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
 export default function CorporateActionRecordsPage() {
   const [records, setRecords] = useState<CorporateActionRecord[]>([]);
   const [selectedRecord, setSelectedRecord] =
@@ -103,6 +113,24 @@ export default function CorporateActionRecordsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    total: 0,
+    page: 1,
+    pageSize: 50,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  });
+
+  // Date range filter states
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [tempStartDate, setTempStartDate] = useState<string>("");
+  const [tempEndDate, setTempEndDate] = useState<string>("");
 
   // Edit states
   const [isEditRecordModalOpen, setIsEditRecordModalOpen] = useState(false);
@@ -165,21 +193,56 @@ export default function CorporateActionRecordsPage() {
         return;
       }
 
-      fetchRecords();
+      // Initialize default date range (last 2 years)
+      const now = new Date();
+      const twoYearsAgo = new Date(now.getFullYear() - 2, now.getMonth(), now.getDate());
+      setTempStartDate(twoYearsAgo.toISOString().split('T')[0]);
+      setTempEndDate(now.toISOString().split('T')[0]);
+      setStartDate(twoYearsAgo.toISOString().split('T')[0]);
+      setEndDate(now.toISOString().split('T')[0]);
+
       fetchCorporateActionTypes();
     };
 
     checkAuth();
   }, [router, supabase.auth]);
 
+  // Fetch records when page, pageSize, or date filters change
+  useEffect(() => {
+    if (startDate && endDate) {
+      fetchRecords();
+    }
+  }, [currentPage, pageSize, startDate, endDate]);
+
   const fetchRecords = async () => {
     try {
       setIsLoading(true);
-      const response = await axiosInstance.get("/corporate-action/records");
+
+      // Build query parameters
+      const params = new URLSearchParams();
+      params.append("rowStart", ((currentPage - 1) * pageSize).toString());
+      params.append("rowLimit", pageSize.toString());
+
+      if (startDate) {
+        const startEpoch = dateToEpoch(new Date(startDate));
+        params.append("startDate", startEpoch.toString());
+      }
+
+      if (endDate) {
+        const endEpoch = dateToEpoch(new Date(endDate));
+        params.append("endDate", endEpoch.toString());
+      }
+
+      const response = await axiosInstance.get(
+        `/corporate-action/records?${params.toString()}`
+      );
       const result = response.data;
 
       if (result.success) {
         setRecords(result.data);
+        if (result.pagination) {
+          setPagination(result.pagination);
+        }
       } else {
         console.error(
           "Failed to fetch corporate action records:",
@@ -193,6 +256,25 @@ export default function CorporateActionRecordsPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleApplyFilters = () => {
+    setStartDate(tempStartDate);
+    setEndDate(tempEndDate);
+    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  const handleClearFilters = () => {
+    const now = new Date();
+    const twoYearsAgo = new Date(now.getFullYear() - 2, now.getMonth(), now.getDate());
+    const defaultStart = twoYearsAgo.toISOString().split('T')[0];
+    const defaultEnd = now.toISOString().split('T')[0];
+
+    setTempStartDate(defaultStart);
+    setTempEndDate(defaultEnd);
+    setStartDate(defaultStart);
+    setEndDate(defaultEnd);
+    setCurrentPage(1);
   };
 
   const fetchCorporateActionTypes = async () => {
@@ -537,12 +619,62 @@ export default function CorporateActionRecordsPage() {
           </Button>
         </div>
 
+        {/* Filters */}
+        <div className="mb-6 rounded-lg border border-default-200 bg-default-50 p-4">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-foreground">Filters</h3>
+            <div className="text-sm text-default-500">
+              Showing {records.length} of {pagination.total} records
+            </div>
+          </div>
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex-1 min-w-[200px]">
+              <Input
+                label="Start Date"
+                type="date"
+                value={tempStartDate}
+                onValueChange={setTempStartDate}
+                max={new Date().toISOString().split('T')[0]}
+                size="sm"
+              />
+            </div>
+            <div className="flex-1 min-w-[200px]">
+              <Input
+                label="End Date"
+                type="date"
+                value={tempEndDate}
+                onValueChange={setTempEndDate}
+                max={new Date().toISOString().split('T')[0]}
+                size="sm"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                color="primary"
+                startContent={<FiSearch />}
+                onPress={handleApplyFilters}
+                size="sm"
+              >
+                Apply
+              </Button>
+              <Button
+                variant="flat"
+                startContent={<FiX />}
+                onPress={handleClearFilters}
+                size="sm"
+              >
+                Clear
+              </Button>
+            </div>
+          </div>
+        </div>
+
         {/* Records Table */}
-        <Table
-          aria-label="Corporate action records table"
-          className="max-h-[70vh] overflow-auto"
-          isHeaderSticky
-        >
+        <div className="max-h-[calc(100vh-400px)] overflow-auto">
+          <Table
+            aria-label="Corporate action records table"
+            isHeaderSticky
+          >
           <TableHeader>
             <TableColumn>ISIN</TableColumn>
             <TableColumn>SYMBOL</TableColumn>
@@ -603,6 +735,41 @@ export default function CorporateActionRecordsPage() {
             ))}
           </TableBody>
         </Table>
+        </div>
+
+        {/* Pagination */}
+        {records.length > 0 && (
+          <div className="mt-4 flex w-full items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-default-500">Rows per page:</span>
+              <Select
+                size="sm"
+                selectedKeys={[pageSize.toString()]}
+                onSelectionChange={(keys) => {
+                  const value = Array.from(keys)[0] as string;
+                  setPageSize(parseInt(value));
+                  setCurrentPage(1);
+                }}
+                className="w-20"
+                aria-label="Rows per page"
+              >
+                <SelectItem key="10">10</SelectItem>
+                <SelectItem key="25">25</SelectItem>
+                <SelectItem key="50">50</SelectItem>
+                <SelectItem key="100">100</SelectItem>
+              </Select>
+            </div>
+            <Pagination
+              isCompact
+              showControls
+              showShadow
+              color="primary"
+              total={pagination.totalPages}
+              page={currentPage}
+              onChange={setCurrentPage}
+            />
+          </div>
+        )}
 
         {/* Details Modal */}
         <Modal

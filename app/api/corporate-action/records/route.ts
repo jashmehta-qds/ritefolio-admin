@@ -52,8 +52,25 @@ export async function GET(request: NextRequest) {
     const actionRecordId = searchParams.get("actionRecordId") || null;
     const isActive = searchParams.get("isActive") || null;
     const rowStart = parseInt(searchParams.get("rowStart") || "0");
-    const rowLimit = parseInt(searchParams.get("rowLimit") || "1000");
+    const rowLimit = parseInt(searchParams.get("rowLimit") || "50");
 
+    // Get total count for pagination
+    const countResult = await callFunction<{ CountCorpActionRecords: number }>({
+      functionName: 'public."CountCorpActionRecords"',
+      dbName: process.env.PG_DEFAULT_DB,
+      params: [
+        sourceStockId,
+        corpActionId ? parseInt(corpActionId) : null,
+        startDate,
+        endDate,
+        actionRecordId,
+        isActive !== null ? isActive === "true" : null,
+      ],
+    });
+
+    const totalCount = countResult[0]?.CountCorpActionRecords || 0;
+
+    // Fetch records
     const records = await callFunction<CorporateActionRecord>({
       functionName: 'public."FetchCorpActionRecords"',
       dbName: process.env.PG_DEFAULT_DB,
@@ -69,10 +86,22 @@ export async function GET(request: NextRequest) {
       ],
     });
 
+    // Calculate pagination metadata
+    const currentPage = Math.floor(rowStart / rowLimit) + 1;
+    const totalPages = Math.ceil(totalCount / rowLimit);
+
     return NextResponse.json(
       {
         success: true,
         data: records,
+        pagination: {
+          total: totalCount,
+          page: currentPage,
+          pageSize: rowLimit,
+          totalPages: totalPages,
+          hasNextPage: currentPage < totalPages,
+          hasPreviousPage: currentPage > 1,
+        },
       },
       { status: 200 }
     );
