@@ -24,7 +24,10 @@ import { Input } from "@heroui/input";
 import { Select, SelectItem } from "@heroui/select";
 import { Autocomplete, AutocompleteItem } from "@heroui/autocomplete";
 import { Switch } from "@heroui/switch";
-import { FiPlus, FiSearch } from "react-icons/fi";
+import { Accordion, AccordionItem } from "@heroui/accordion";
+import { Divider } from "@heroui/divider";
+import { Tooltip } from "@heroui/tooltip";
+import { FiPlus, FiSearch, FiEye, FiCopy, FiCheck } from "react-icons/fi";
 import { createClient } from "@/lib/supabase/client";
 import axiosInstance from "@/lib/axios";
 
@@ -63,6 +66,9 @@ export default function UnlistedStocksPage() {
   const [investmentTypes, setInvestmentTypes] = useState<InvestmentType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -212,6 +218,21 @@ export default function UnlistedStocksPage() {
     });
   };
 
+  const handleViewDetails = (stock: Stock) => {
+    setSelectedStock(stock);
+    setIsDetailsModalOpen(true);
+  };
+
+  const handleCopyToClipboard = async (text: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (error) {
+      console.error("Failed to copy:", error);
+    }
+  };
+
   if (isLoading && stocks.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -270,6 +291,7 @@ export default function UnlistedStocksPage() {
             <TableColumn>SECTOR</TableColumn>
             <TableColumn>INDUSTRY</TableColumn>
             <TableColumn>STATUS</TableColumn>
+            <TableColumn>ACTION</TableColumn>
           </TableHeader>
           <TableBody
             emptyContent={isLoading ? "Loading..." : "No stocks found"}
@@ -294,6 +316,19 @@ export default function UnlistedStocksPage() {
                     {stock.IsActive ? "Active" : "Inactive"}
                   </Chip>
                 </TableCell>
+                <TableCell>
+                  <Tooltip content="View details">
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="light"
+                      onPress={() => handleViewDetails(stock)}
+                      aria-label="View details"
+                    >
+                      <FiEye className="text-lg" />
+                    </Button>
+                  </Tooltip>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -314,6 +349,281 @@ export default function UnlistedStocksPage() {
             />
           </div>
         )}
+
+        {/* Stock Details Modal */}
+        <Modal
+          isOpen={isDetailsModalOpen}
+          onClose={() => setIsDetailsModalOpen(false)}
+          size="5xl"
+          scrollBehavior="inside"
+          classNames={{
+            base: "max-h-[95vh]",
+            wrapper: "items-center",
+            body: "py-6",
+          }}
+        >
+          <ModalContent>
+            {(onClose) => (
+              <>
+                <ModalHeader className="flex flex-col gap-1 pb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-xl sm:text-2xl font-bold truncate">
+                        {selectedStock?.Name}
+                      </h2>
+                      <p className="text-sm text-default-500 font-normal">
+                        {selectedStock?.Symbol || "No Symbol"}
+                      </p>
+                    </div>
+                    <Chip
+                      color={selectedStock?.IsActive ? "success" : "default"}
+                      variant="flat"
+                      className="self-start sm:self-center"
+                    >
+                      {selectedStock?.IsActive ? "Active" : "Inactive"}
+                    </Chip>
+                  </div>
+                </ModalHeader>
+                <Divider />
+                <ModalBody className="py-4 px-3 sm:px-6">
+                  <Accordion
+                    variant="bordered"
+                    defaultExpandedKeys={["basic"]}
+                    className="gap-2"
+                  >
+                    {/* Basic Information */}
+                    <AccordionItem
+                      key="basic"
+                      aria-label="Basic Information"
+                      title={
+                        <span className="font-semibold text-base sm:text-lg">
+                          Basic Information
+                        </span>
+                      }
+                      classNames={{
+                        content: "pb-4 pt-2",
+                      }}
+                    >
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-1 sm:px-3">
+                      {selectedStock?.Symbol && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-default-500">Symbol</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold">{selectedStock.Symbol}</p>
+                            <Tooltip content={copiedField === "symbol" ? "Copied!" : "Copy"}>
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                variant="light"
+                                onPress={() =>
+                                  handleCopyToClipboard(
+                                    selectedStock.Symbol!,
+                                    "symbol"
+                                  )
+                                }
+                              >
+                                {copiedField === "symbol" ? (
+                                  <FiCheck className="text-success" />
+                                ) : (
+                                  <FiCopy className="text-default-400" />
+                                )}
+                              </Button>
+                            </Tooltip>
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedStock.Isin && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-default-500">ISIN</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold">{selectedStock.Isin}</p>
+                            <Tooltip content={copiedField === "isin" ? "Copied!" : "Copy"}>
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                variant="light"
+                                onPress={() =>
+                                  handleCopyToClipboard(selectedStock.Isin!, "isin")
+                                }
+                              >
+                                {copiedField === "isin" ? (
+                                  <FiCheck className="text-success" />
+                                ) : (
+                                  <FiCopy className="text-default-400" />
+                                )}
+                              </Button>
+                            </Tooltip>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="space-y-1">
+                        <p className="text-xs text-default-500">Face Value</p>
+                        <p className="font-semibold">{selectedStock.FaceValue}</p>
+                      </div>
+
+                      {selectedStock.BseCode && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-default-500">BSE Code</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold">
+                              {selectedStock.BseCode}
+                            </p>
+                            <Tooltip content={copiedField === "bseCode" ? "Copied!" : "Copy"}>
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                variant="light"
+                                onPress={() =>
+                                  handleCopyToClipboard(
+                                    selectedStock.BseCode!,
+                                    "bseCode"
+                                  )
+                                }
+                              >
+                                {copiedField === "bseCode" ? (
+                                  <FiCheck className="text-success" />
+                                ) : (
+                                  <FiCopy className="text-default-400" />
+                                )}
+                              </Button>
+                            </Tooltip>
+                          </div>
+                        </div>
+                      )}
+                      </div>
+                    </AccordionItem>
+
+                    {/* Classification */}
+                    {(selectedStock?.MacroSector ||
+                      selectedStock?.Sector ||
+                      selectedStock?.Industry) && (
+                      <AccordionItem
+                        key="classification"
+                        aria-label="Classification"
+                        title={
+                          <span className="font-semibold text-base sm:text-lg">
+                            Classification
+                          </span>
+                        }
+                        classNames={{
+                          content: "pb-4",
+                        }}
+                      >
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-2">
+                        {selectedStock.MacroSector && (
+                          <div className="space-y-1">
+                            <p className="text-xs text-default-500">
+                              Macro Sector
+                            </p>
+                            <p className="font-semibold">
+                              {selectedStock.MacroSector}
+                            </p>
+                          </div>
+                        )}
+
+                        {selectedStock.Sector && (
+                          <div className="space-y-1">
+                            <p className="text-xs text-default-500">Sector</p>
+                            <p className="font-semibold">
+                              {selectedStock.Sector}
+                            </p>
+                          </div>
+                        )}
+
+                        {selectedStock.Industry && (
+                          <div className="space-y-1">
+                            <p className="text-xs text-default-500">Industry</p>
+                            <p className="font-semibold">
+                              {selectedStock.Industry}
+                            </p>
+                          </div>
+                        )}
+                        </div>
+                      </AccordionItem>
+                    )}
+
+                    {/* System Information */}
+                    <AccordionItem
+                      key="system"
+                      aria-label="System Information"
+                      title={
+                        <span className="font-semibold text-base sm:text-lg">
+                          System Information
+                        </span>
+                      }
+                      classNames={{
+                        content: "pb-4 pt-2",
+                      }}
+                    >
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-1 sm:px-3">
+                      <div className="space-y-1">
+                        <p className="text-xs text-default-500">Stock ID</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-mono text-sm">{selectedStock.Id}</p>
+                          <Tooltip content={copiedField === "id" ? "Copied!" : "Copy"}>
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="light"
+                              onPress={() =>
+                                handleCopyToClipboard(selectedStock.Id, "id")
+                              }
+                            >
+                              {copiedField === "id" ? (
+                                <FiCheck className="text-success" />
+                              ) : (
+                                <FiCopy className="text-default-400" />
+                              )}
+                            </Button>
+                          </Tooltip>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-xs text-default-500">Country ID</p>
+                        <p className="font-semibold">{selectedStock.CountryId}</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-xs text-default-500">
+                          Investment Type ID
+                        </p>
+                        <p className="font-semibold">
+                          {selectedStock.InvestmentTypeId}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-xs text-default-500">Listed Status</p>
+                        <Chip
+                          color={selectedStock.Listed ? "success" : "default"}
+                          size="sm"
+                          variant="flat"
+                        >
+                          {selectedStock.Listed ? "Listed" : "Unlisted"}
+                        </Chip>
+                      </div>
+                      </div>
+                    </AccordionItem>
+                  </Accordion>
+                </ModalBody>
+                <Divider />
+                <ModalFooter className="px-4 py-3 sm:px-6 sm:py-4">
+                  <Button
+                    color="primary"
+                    variant="flat"
+                    onPress={onClose}
+                    className="w-full sm:w-auto"
+                  >
+                    Close
+                  </Button>
+                </ModalFooter>
+              </>
+            )}
+          </ModalContent>
+        </Modal>
 
         {/* Add Stock Modal */}
         <Modal

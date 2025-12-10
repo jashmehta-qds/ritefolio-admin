@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { callFunction } from "@/utils/db";
-import {
-  getCurrentFYEndEpoch,
-  getFYStartEpochByYear,
-} from "@/utils/date";
+import { callFunction, callProcedure } from "@/utils/db";
+import { getCurrentFYEndEpoch, getFYStartEpochByYear } from "@/utils/date";
 
 interface CorporateActionRecord {
   Id: string;
@@ -133,7 +130,13 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Validate required fields
-    if (!sourceStockId || !corpActionTypeId || !exDate || !recordDate || !details) {
+    if (
+      !sourceStockId ||
+      !corpActionTypeId ||
+      !exDate ||
+      !recordDate ||
+      !details
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -156,37 +159,36 @@ export async function POST(request: NextRequest) {
 
     // Transform details to match the procedure's expected format
     const formattedDetails = details.map((detail: any) => ({
-      target_stock_id: detail.targetStockId || null,
+      target_stock_id: detail.targetStockId ?? null,
       ratio_quantity_held: detail.ratioQuantityHeld,
       ratio_quantity_entitled: detail.ratioQuantityEntitled,
-      ratio_book_value_held: detail.ratioBookValueHeld || null,
-      ratio_book_value_entitled: detail.ratioBookValueEntitled || null,
-      target_sale_row: detail.targetSaleRow || false,
-      remark: detail.remark || null,
+      ratio_book_value_held: detail.ratioBookValueHeld ?? null,
+      ratio_book_value_entitled: detail.ratioBookValueEntitled ?? null,
+      target_sale_row: detail.targetSaleRow ?? false,
+      reference_doc_url: detail.referenceDocUrl ?? null,
+      remark: detail.remark ?? null,
     }));
 
     // Call the AddCorporateAction procedure
-    const result = await callFunction<{ p_added_row_id: string }>({
-      functionName: 'public."AddCorporateAction"',
+    await callProcedure({
+      procedureName: 'public."AddCorporateAction"',
       dbName: process.env.PG_DEFAULT_DB,
       params: [
-        null, // OUT parameter placeholder
-        sourceStockId,
-        corpActionTypeId,
-        exDate,
-        recordDate,
-        allotmentDate,
-        JSON.stringify(formattedDetails),
-        remark || null,
+        null, // p_added_row_id (OUT parameter)
+        sourceStockId, // p_source_stock_id
+        corpActionTypeId, // p_corporate_action_type_id
+        exDate, // p_ex_date
+        recordDate, // p_record_date
+        allotmentDate ?? null, // p_allotment_date
+        JSON.stringify(formattedDetails), // p_corporate_action_details
+        true, // p_is_active
+        remark ?? null, // p_remark
       ],
     });
 
     return NextResponse.json(
       {
         success: true,
-        data: {
-          id: result[0]?.p_added_row_id,
-        },
         message: "Corporate action added successfully",
       },
       { status: 201 }

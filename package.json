@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint --fix"
   },
+  "packageManager": "yarn@4.12.0",
   "dependencies": {
     "@heroui/accordion": "2.2.24",
     "@heroui/alert": "2.2.27",
