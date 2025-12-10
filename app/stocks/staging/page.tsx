@@ -245,60 +245,57 @@ export default function StagingStocksPage() {
 
         {/* Stocks Table */}
         <div className="max-h-[calc(100vh-340px)] overflow-auto">
-          <Table
-            aria-label="Staging stocks table"
-            isHeaderSticky
-          >
-          <TableHeader>
-            <TableColumn>SYMBOL</TableColumn>
-            <TableColumn>NAME</TableColumn>
-            <TableColumn>ISIN</TableColumn>
-            <TableColumn>BSE CODE</TableColumn>
-            <TableColumn>FACE VALUE</TableColumn>
-            <TableColumn>STATUS</TableColumn>
-            <TableColumn>ACTION</TableColumn>
-          </TableHeader>
-          <TableBody
-            emptyContent={isLoading ? "Loading..." : "No stocks found"}
-            isLoading={isLoading}
-          >
-            {stocks.map((stock) => (
-              <TableRow key={stock.Id}>
-                <TableCell className="font-semibold">
-                  {stock.Symbol || "-"}
-                </TableCell>
-                <TableCell>{stock.Name || "-"}</TableCell>
-                <TableCell>{stock.Isin || "-"}</TableCell>
-                <TableCell>{stock.BseCode || "-"}</TableCell>
-                <TableCell>
-                  {stock.FaceValue ? stock.FaceValue : "-"}
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    color={stock.IsActive ? "warning" : "default"}
-                    size="sm"
-                    variant="flat"
-                  >
-                    {stock.IsActive ? "Staging" : "Inactive"}
-                  </Chip>
-                </TableCell>
-                <TableCell>
-                  <Tooltip content="View details">
-                    <Button
-                      isIconOnly
+          <Table aria-label="Staging stocks table" isHeaderSticky>
+            <TableHeader>
+              <TableColumn>SYMBOL</TableColumn>
+              <TableColumn>NAME</TableColumn>
+              <TableColumn>ISIN</TableColumn>
+              <TableColumn>BSE CODE</TableColumn>
+              <TableColumn>FACE VALUE</TableColumn>
+              <TableColumn>STATUS</TableColumn>
+              <TableColumn>ACTION</TableColumn>
+            </TableHeader>
+            <TableBody
+              emptyContent={isLoading ? "Loading..." : "No stocks found"}
+              isLoading={isLoading}
+            >
+              {stocks.map((stock) => (
+                <TableRow key={stock.Id}>
+                  <TableCell className="font-semibold">
+                    {stock.Symbol || "-"}
+                  </TableCell>
+                  <TableCell>{stock.Name || "-"}</TableCell>
+                  <TableCell>{stock.Isin || "-"}</TableCell>
+                  <TableCell>{stock.BseCode || "-"}</TableCell>
+                  <TableCell>
+                    {stock.FaceValue ? stock.FaceValue : "-"}
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      color={stock.IsActive ? "warning" : "default"}
                       size="sm"
-                      variant="light"
-                      onPress={() => handleViewDetails(stock)}
-                      aria-label="View details"
+                      variant="flat"
                     >
-                      <FiEye className="text-lg" />
-                    </Button>
-                  </Tooltip>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                      {stock.IsActive ? "Staging" : "Inactive"}
+                    </Chip>
+                  </TableCell>
+                  <TableCell>
+                    <Tooltip content="View details">
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="light"
+                        onPress={() => handleViewDetails(stock)}
+                        aria-label="View details"
+                      >
+                        <FiEye className="text-lg" />
+                      </Button>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
 
         {/* Pagination */}
@@ -352,189 +349,233 @@ export default function StagingStocksPage() {
                 </ModalHeader>
                 <Divider />
                 <ModalBody className="py-4 px-3 sm:px-6">
-                  <Accordion
-                    variant="bordered"
-                    defaultExpandedKeys={["basic"]}
-                    className="gap-2"
-                  >
-                    {/* Basic Information */}
-                    <AccordionItem
-                      key="basic"
-                      aria-label="Basic Information"
-                      title={
-                        <span className="font-semibold text-base sm:text-lg">
-                          Basic Information
-                        </span>
-                      }
-                      classNames={{
-                        content: "pb-4 pt-2",
-                      }}
+                  {selectedStock && (
+                    <Accordion
+                      variant="bordered"
+                      defaultExpandedKeys={["basic"]}
+                      className="gap-2"
                     >
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-1 sm:px-3">
-                      {selectedStock?.Symbol && (
-                        <div className="space-y-1">
-                          <p className="text-xs text-default-500">Symbol</p>
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold">{selectedStock.Symbol}</p>
-                            <Tooltip content={copiedField === "symbol" ? "Copied!" : "Copy"}>
-                              <Button
-                                isIconOnly
-                                size="sm"
-                                variant="light"
-                                onPress={() =>
-                                  handleCopyToClipboard(
-                                    selectedStock.Symbol!,
-                                    "symbol"
-                                  )
+                      {/* Basic Information */}
+                      <AccordionItem
+                        key="basic"
+                        aria-label="Basic Information"
+                        title={
+                          <span className="font-semibold text-base sm:text-lg">
+                            Basic Information
+                          </span>
+                        }
+                        classNames={{
+                          content: "pb-4 pt-2",
+                        }}
+                      >
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-1 sm:px-3">
+                          {selectedStock.Symbol && (
+                            <div className="space-y-1">
+                              <p className="text-xs text-default-500">Symbol</p>
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold">
+                                  {selectedStock.Symbol}
+                                </p>
+                                <Tooltip
+                                  content={
+                                    copiedField === "symbol"
+                                      ? "Copied!"
+                                      : "Copy"
+                                  }
+                                >
+                                  <Button
+                                    isIconOnly
+                                    size="sm"
+                                    variant="light"
+                                    onPress={() =>
+                                      handleCopyToClipboard(
+                                        selectedStock.Symbol!,
+                                        "symbol"
+                                      )
+                                    }
+                                  >
+                                    {copiedField === "symbol" ? (
+                                      <FiCheck className="text-success" />
+                                    ) : (
+                                      <FiCopy className="text-default-400" />
+                                    )}
+                                  </Button>
+                                </Tooltip>
+                              </div>
+                            </div>
+                          )}
+
+                          {selectedStock.Isin && (
+                            <div className="space-y-1">
+                              <p className="text-xs text-default-500">ISIN</p>
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold">
+                                  {selectedStock.Isin}
+                                </p>
+                                <Tooltip
+                                  content={
+                                    copiedField === "isin" ? "Copied!" : "Copy"
+                                  }
+                                >
+                                  <Button
+                                    isIconOnly
+                                    size="sm"
+                                    variant="light"
+                                    onPress={() =>
+                                      handleCopyToClipboard(
+                                        selectedStock.Isin!,
+                                        "isin"
+                                      )
+                                    }
+                                  >
+                                    {copiedField === "isin" ? (
+                                      <FiCheck className="text-success" />
+                                    ) : (
+                                      <FiCopy className="text-default-400" />
+                                    )}
+                                  </Button>
+                                </Tooltip>
+                              </div>
+                            </div>
+                          )}
+
+                          {selectedStock.BseCode && (
+                            <div className="space-y-1">
+                              <p className="text-xs text-default-500">
+                                BSE Code
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold">
+                                  {selectedStock.BseCode}
+                                </p>
+                                <Tooltip
+                                  content={
+                                    copiedField === "bseCode"
+                                      ? "Copied!"
+                                      : "Copy"
+                                  }
+                                >
+                                  <Button
+                                    isIconOnly
+                                    size="sm"
+                                    variant="light"
+                                    onPress={() =>
+                                      handleCopyToClipboard(
+                                        selectedStock.BseCode!,
+                                        "bseCode"
+                                      )
+                                    }
+                                  >
+                                    {copiedField === "bseCode" ? (
+                                      <FiCheck className="text-success" />
+                                    ) : (
+                                      <FiCopy className="text-default-400" />
+                                    )}
+                                  </Button>
+                                </Tooltip>
+                              </div>
+                            </div>
+                          )}
+
+                          {selectedStock.FaceValue && (
+                            <div className="space-y-1">
+                              <p className="text-xs text-default-500">
+                                Face Value
+                              </p>
+                              <p className="font-semibold">
+                                {selectedStock.FaceValue}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </AccordionItem>
+
+                      {/* System Information */}
+                      <AccordionItem
+                        key="system"
+                        aria-label="System Information"
+                        title={
+                          <span className="font-semibold text-base sm:text-lg">
+                            System Information
+                          </span>
+                        }
+                        classNames={{
+                          content: "pb-4 pt-2",
+                        }}
+                      >
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-1 sm:px-3">
+                          <div className="space-y-1">
+                            <p className="text-xs text-default-500">Stock ID</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-mono text-sm">
+                                {selectedStock.Id}
+                              </p>
+                              <Tooltip
+                                content={
+                                  copiedField === "id" ? "Copied!" : "Copy"
                                 }
                               >
-                                {copiedField === "symbol" ? (
-                                  <FiCheck className="text-success" />
-                                ) : (
-                                  <FiCopy className="text-default-400" />
-                                )}
-                              </Button>
-                            </Tooltip>
+                                <Button
+                                  isIconOnly
+                                  size="sm"
+                                  variant="light"
+                                  onPress={() =>
+                                    handleCopyToClipboard(
+                                      selectedStock.Id,
+                                      "id"
+                                    )
+                                  }
+                                >
+                                  {copiedField === "id" ? (
+                                    <FiCheck className="text-success" />
+                                  ) : (
+                                    <FiCopy className="text-default-400" />
+                                  )}
+                                </Button>
+                              </Tooltip>
+                            </div>
                           </div>
-                        </div>
-                      )}
 
-                      {selectedStock.Isin && (
-                        <div className="space-y-1">
-                          <p className="text-xs text-default-500">ISIN</p>
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold">{selectedStock.Isin}</p>
-                            <Tooltip content={copiedField === "isin" ? "Copied!" : "Copy"}>
-                              <Button
-                                isIconOnly
-                                size="sm"
-                                variant="light"
-                                onPress={() =>
-                                  handleCopyToClipboard(selectedStock.Isin!, "isin")
-                                }
-                              >
-                                {copiedField === "isin" ? (
-                                  <FiCheck className="text-success" />
-                                ) : (
-                                  <FiCopy className="text-default-400" />
-                                )}
-                              </Button>
-                            </Tooltip>
-                          </div>
-                        </div>
-                      )}
+                          {selectedStock.CountryId && (
+                            <div className="space-y-1">
+                              <p className="text-xs text-default-500">
+                                Country ID
+                              </p>
+                              <p className="font-semibold">
+                                {selectedStock.CountryId}
+                              </p>
+                            </div>
+                          )}
 
-                      {selectedStock.BseCode && (
-                        <div className="space-y-1">
-                          <p className="text-xs text-default-500">BSE Code</p>
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold">
-                              {selectedStock.BseCode}
+                          {selectedStock.InvestmentTypeId && (
+                            <div className="space-y-1">
+                              <p className="text-xs text-default-500">
+                                Investment Type ID
+                              </p>
+                              <p className="font-semibold">
+                                {selectedStock.InvestmentTypeId}
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="space-y-1">
+                            <p className="text-xs text-default-500">
+                              Listed Status
                             </p>
-                            <Tooltip content={copiedField === "bseCode" ? "Copied!" : "Copy"}>
-                              <Button
-                                isIconOnly
-                                size="sm"
-                                variant="light"
-                                onPress={() =>
-                                  handleCopyToClipboard(
-                                    selectedStock.BseCode!,
-                                    "bseCode"
-                                  )
-                                }
-                              >
-                                {copiedField === "bseCode" ? (
-                                  <FiCheck className="text-success" />
-                                ) : (
-                                  <FiCopy className="text-default-400" />
-                                )}
-                              </Button>
-                            </Tooltip>
+                            <Chip
+                              color={
+                                selectedStock.Listed ? "success" : "default"
+                              }
+                              size="sm"
+                              variant="flat"
+                            >
+                              {selectedStock.Listed ? "Listed" : "Unlisted"}
+                            </Chip>
                           </div>
                         </div>
-                      )}
-
-                      {selectedStock.FaceValue && (
-                        <div className="space-y-1">
-                          <p className="text-xs text-default-500">Face Value</p>
-                          <p className="font-semibold">
-                            {selectedStock.FaceValue}
-                          </p>
-                        </div>
-                      )}
-                      </div>
-                    </AccordionItem>
-
-                    {/* System Information */}
-                    <AccordionItem
-                      key="system"
-                      aria-label="System Information"
-                      title={
-                        <span className="font-semibold text-base sm:text-lg">
-                          System Information
-                        </span>
-                      }
-                      classNames={{
-                        content: "pb-4 pt-2",
-                      }}
-                    >
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-1 sm:px-3">
-                      <div className="space-y-1">
-                        <p className="text-xs text-default-500">Stock ID</p>
-                        <div className="flex items-center gap-2">
-                          <p className="font-mono text-sm">{selectedStock.Id}</p>
-                          <Tooltip content={copiedField === "id" ? "Copied!" : "Copy"}>
-                            <Button
-                              isIconOnly
-                              size="sm"
-                              variant="light"
-                              onPress={() =>
-                                handleCopyToClipboard(selectedStock.Id, "id")
-                              }
-                            >
-                              {copiedField === "id" ? (
-                                <FiCheck className="text-success" />
-                              ) : (
-                                <FiCopy className="text-default-400" />
-                              )}
-                            </Button>
-                          </Tooltip>
-                        </div>
-                      </div>
-
-                      {selectedStock.CountryId && (
-                        <div className="space-y-1">
-                          <p className="text-xs text-default-500">Country ID</p>
-                          <p className="font-semibold">
-                            {selectedStock.CountryId}
-                          </p>
-                        </div>
-                      )}
-
-                      {selectedStock.InvestmentTypeId && (
-                        <div className="space-y-1">
-                          <p className="text-xs text-default-500">
-                            Investment Type ID
-                          </p>
-                          <p className="font-semibold">
-                            {selectedStock.InvestmentTypeId}
-                          </p>
-                        </div>
-                      )}
-
-                      <div className="space-y-1">
-                        <p className="text-xs text-default-500">Listed Status</p>
-                        <Chip
-                          color={selectedStock.Listed ? "success" : "default"}
-                          size="sm"
-                          variant="flat"
-                        >
-                          {selectedStock.Listed ? "Listed" : "Unlisted"}
-                        </Chip>
-                      </div>
-                      </div>
-                    </AccordionItem>
-                  </Accordion>
+                      </AccordionItem>
+                    </Accordion>
+                  )}
                 </ModalBody>
                 <Divider />
                 <ModalFooter className="px-4 py-3 sm:px-6 sm:py-4">
