@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { callFunction } from "@/utils/db";
+import { callFunction, callProcedure } from "@/utils/db";
 
 interface CorporateActionDetail {
   Id: string;
@@ -63,6 +63,92 @@ export async function GET(
       {
         success: false,
         error: "Failed to fetch corporate action details",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// POST: Add a new corporate action detail
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+
+    if (!id) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Record ID is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    const {
+      targetStockId,
+      ratioQuantityHeld,
+      ratioQuantityEntitled,
+      ratioBookValueHeld,
+      ratioBookValueEntitled,
+      targetSaleRow,
+      referenceDocUrl,
+      isActive = true,
+      remark,
+    } = body;
+
+    // Validate required fields
+    if (
+      ratioQuantityHeld === undefined ||
+      ratioQuantityHeld === null ||
+      ratioQuantityEntitled === undefined ||
+      ratioQuantityEntitled === null
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Ratio quantities are required",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Call the InsertCorpActDetail procedure
+    const result = await callProcedure({
+      procedureName: 'public."InsertCorpActDetail"',
+      dbName: process.env.PG_DEFAULT_DB,
+      params: [
+        id, // p_corp_act_record_id
+        targetStockId || null, // p_target_stock_id
+        ratioQuantityHeld, // p_ratio_quantity_held
+        ratioQuantityEntitled, // p_ratio_quantity_entitled
+        ratioBookValueHeld || null, // p_ratio_book_value_held
+        ratioBookValueEntitled || null, // p_ratio_book_value_entitled
+        targetSaleRow || false, // p_target_sale_row
+        referenceDocUrl || null, // p_reference_doc_url
+        isActive, // p_is_active
+        remark || null, // p_remark
+      ],
+    });
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: result,
+        message: "Corporate action detail added successfully",
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("Error adding corporate action detail:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to add corporate action detail",
         message: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }

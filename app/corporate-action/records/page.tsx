@@ -135,10 +135,30 @@ export default function CorporateActionRecordsPage() {
   // Edit states
   const [isEditRecordModalOpen, setIsEditRecordModalOpen] = useState(false);
   const [isEditDetailModalOpen, setIsEditDetailModalOpen] = useState(false);
+  const [isAddDetailModalOpen, setIsAddDetailModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] =
     useState<CorporateActionRecord | null>(null);
   const [editingDetail, setEditingDetail] =
     useState<CorporateActionDetail | null>(null);
+  const [newDetail, setNewDetail] = useState<{
+    targetStockId: string | null;
+    ratioQuantityHeld: number;
+    ratioQuantityEntitled: number;
+    ratioBookValueHeld: number | null;
+    ratioBookValueEntitled: number | null;
+    targetSaleRow: boolean;
+    referenceDocUrl: string | null;
+    remark: string | null;
+  }>({
+    targetStockId: null,
+    ratioQuantityHeld: 0,
+    ratioQuantityEntitled: 0,
+    ratioBookValueHeld: null,
+    ratioBookValueEntitled: null,
+    targetSaleRow: false,
+    referenceDocUrl: null,
+    remark: null,
+  });
   const [corporateActionTypes, setCorporateActionTypes] = useState<
     CorporateActionType[]
   >([]);
@@ -460,6 +480,67 @@ export default function CorporateActionRecordsPage() {
     } catch (error) {
       console.error("Error updating detail:", error);
       showToast("Error updating detail", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Add Detail Handlers
+  const handleOpenAddDetailModal = () => {
+    setNewDetail({
+      targetStockId: null,
+      ratioQuantityHeld: 0,
+      ratioQuantityEntitled: 0,
+      ratioBookValueHeld: null,
+      ratioBookValueEntitled: null,
+      targetSaleRow: false,
+      referenceDocUrl: null,
+      remark: null,
+    });
+    setInitialTargetStockName("");
+    setIsAddDetailModalOpen(true);
+  };
+
+  const handleSaveNewDetail = async () => {
+    if (!selectedRecord) return;
+
+    try {
+      // Validate required fields
+      if (!newDetail.ratioQuantityHeld || !newDetail.ratioQuantityEntitled) {
+        showToast("Please fill in all required ratio quantities", "error");
+        return;
+      }
+
+      setIsSaving(true);
+      const response = await axiosInstance.post(
+        `/corporate-action/records/${selectedRecord.Id}/details`,
+        {
+          targetStockId: newDetail.targetStockId,
+          ratioQuantityHeld: Number(newDetail.ratioQuantityHeld),
+          ratioQuantityEntitled: Number(newDetail.ratioQuantityEntitled),
+          ratioBookValueHeld: newDetail.ratioBookValueHeld
+            ? Number(newDetail.ratioBookValueHeld)
+            : null,
+          ratioBookValueEntitled: newDetail.ratioBookValueEntitled
+            ? Number(newDetail.ratioBookValueEntitled)
+            : null,
+          targetSaleRow: newDetail.targetSaleRow,
+          referenceDocUrl: newDetail.referenceDocUrl,
+          remark: newDetail.remark,
+          isActive: true,
+        }
+      );
+
+      if (response.data.success) {
+        showToast("Detail added successfully", "success");
+        setIsAddDetailModalOpen(false);
+        await fetchDetails(selectedRecord.Id);
+      } else {
+        showToast("Failed to add detail", "error");
+      }
+    } catch (error) {
+      console.error("Error adding detail:", error);
+      showToast("Error adding detail", "error");
     } finally {
       setIsSaving(false);
     }
@@ -848,9 +929,18 @@ export default function CorporateActionRecordsPage() {
 
                   {/* Details Table */}
                   <div>
-                    <h3 className="mb-4 text-md font-semibold">
-                      Action Details
-                    </h3>
+                    <div className="mb-4 flex items-center justify-between">
+                      <h3 className="text-md font-semibold">Action Details</h3>
+                      <Button
+                        size="sm"
+                        color="primary"
+                        variant="bordered"
+                        startContent={<FiPlus />}
+                        onPress={handleOpenAddDetailModal}
+                      >
+                        Add Detail Row
+                      </Button>
+                    </div>
                     {details.length === 0 ? (
                       <div className="py-8 text-center text-default-500">
                         No details available for this record
@@ -1256,6 +1346,146 @@ export default function CorporateActionRecordsPage() {
                 isLoading={isSaving}
               >
                 Save Changes
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        {/* Add Detail Modal */}
+        <Modal
+          isOpen={isAddDetailModalOpen}
+          onClose={() => setIsAddDetailModalOpen(false)}
+          size="3xl"
+          scrollBehavior="inside"
+        >
+          <ModalContent>
+            <ModalHeader>Add New Corporate Action Detail</ModalHeader>
+            <ModalBody>
+              <div className="space-y-4">
+                <StockAutocomplete
+                  name="targetStock"
+                  label="Target Stock (Optional)"
+                  placeholder="Search by stock name, symbol, ISIN, or BSE code"
+                  value={newDetail.targetStockId || ""}
+                  onSelectionChange={(stockId, stock) => {
+                    if (stockId && stock) {
+                      setNewDetail({
+                        ...newDetail,
+                        targetStockId: stockId,
+                      });
+                      setInitialTargetStockName(stock.Name);
+                    } else {
+                      setNewDetail({
+                        ...newDetail,
+                        targetStockId: null,
+                      });
+                      setInitialTargetStockName("");
+                    }
+                  }}
+                  initialStockName={initialTargetStockName}
+                />
+
+                <Input
+                  label="Ratio Quantity Held"
+                  type="number"
+                  step="0.0001"
+                  value={newDetail.ratioQuantityHeld.toString()}
+                  onValueChange={(value) =>
+                    setNewDetail({
+                      ...newDetail,
+                      ratioQuantityHeld: parseFloat(value) || 0,
+                    })
+                  }
+                  isRequired
+                />
+
+                <Input
+                  label="Ratio Quantity Entitled"
+                  type="number"
+                  step="0.0001"
+                  value={newDetail.ratioQuantityEntitled.toString()}
+                  onValueChange={(value) =>
+                    setNewDetail({
+                      ...newDetail,
+                      ratioQuantityEntitled: parseFloat(value) || 0,
+                    })
+                  }
+                  isRequired
+                />
+
+                <Input
+                  label="Ratio Book Value Held"
+                  type="number"
+                  step="0.0001"
+                  value={newDetail.ratioBookValueHeld?.toString() || ""}
+                  onValueChange={(value) =>
+                    setNewDetail({
+                      ...newDetail,
+                      ratioBookValueHeld: value ? parseFloat(value) : null,
+                    })
+                  }
+                />
+
+                <Input
+                  label="Ratio Book Value Entitled"
+                  type="number"
+                  step="0.0001"
+                  value={newDetail.ratioBookValueEntitled?.toString() || ""}
+                  onValueChange={(value) =>
+                    setNewDetail({
+                      ...newDetail,
+                      ratioBookValueEntitled: value ? parseFloat(value) : null,
+                    })
+                  }
+                />
+
+                <Input
+                  label="Reference Document URL"
+                  type="url"
+                  placeholder="https://example.com/document.pdf"
+                  value={newDetail.referenceDocUrl || ""}
+                  onValueChange={(value) =>
+                    setNewDetail({
+                      ...newDetail,
+                      referenceDocUrl: value || null,
+                    })
+                  }
+                />
+
+                <Switch
+                  isSelected={newDetail.targetSaleRow}
+                  onValueChange={(value) =>
+                    setNewDetail({
+                      ...newDetail,
+                      targetSaleRow: value,
+                    })
+                  }
+                >
+                  Target Sale Row
+                </Switch>
+
+                <Textarea
+                  label="Remark"
+                  value={newDetail.remark || ""}
+                  onValueChange={(value) =>
+                    setNewDetail({ ...newDetail, remark: value || null })
+                  }
+                />
+              </div>
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                variant="light"
+                onPress={() => setIsAddDetailModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                color="primary"
+                onPress={handleSaveNewDetail}
+                isLoading={isSaving}
+              >
+                Add Detail
               </Button>
             </ModalFooter>
           </ModalContent>
