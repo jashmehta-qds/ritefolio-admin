@@ -302,68 +302,70 @@ export default function ListedStocksPage() {
 
         {/* Stocks Table */}
         <div className="max-h-[calc(100vh-340px)] overflow-auto">
-          <Table
-            aria-label="Listed stocks table"
-            isHeaderSticky
-          >
-          <TableHeader>
-            <TableColumn>SYMBOL</TableColumn>
-            <TableColumn>NAME</TableColumn>
-            <TableColumn>ISIN</TableColumn>
-            <TableColumn>FACE VALUE</TableColumn>
-            <TableColumn>SECTOR</TableColumn>
-            <TableColumn>LISTING DATE</TableColumn>
-            <TableColumn>STATUS</TableColumn>
-            <TableColumn>ACTION</TableColumn>
-          </TableHeader>
-          <TableBody
-            emptyContent={isLoading ? "Loading..." : "No stocks found"}
-            isLoading={isLoading}
-          >
-            {stocks.map((stock) => (
-              <TableRow key={stock.Id}>
-                <TableCell className="font-semibold">{stock.Symbol}</TableCell>
-                <TableCell>{stock.Name}</TableCell>
-                <TableCell>{stock.Isin}</TableCell>
-                <TableCell>{stock.FaceValue}</TableCell>
-                <TableCell>{stock.Sector || "-"}</TableCell>
-                <TableCell>
-                  {stock.ListingDate
-                    ? (() => {
-                        const date = new Date(stock.ListingDate * 1000);
-                        const day = String(date.getDate()).padStart(2, "0");
-                        const month = String(date.getMonth() + 1).padStart(2, "0");
-                        const year = date.getFullYear();
-                        return `${day}/${month}/${year}`;
-                      })()
-                    : "-"}
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    color={stock.IsActive ? "success" : "default"}
-                    size="sm"
-                    variant="flat"
-                  >
-                    {stock.IsActive ? "Active" : "Inactive"}
-                  </Chip>
-                </TableCell>
-                <TableCell>
-                  <Tooltip content="View details">
-                    <Button
-                      isIconOnly
+          <Table aria-label="Listed stocks table" isHeaderSticky>
+            <TableHeader>
+              <TableColumn>SYMBOL</TableColumn>
+              <TableColumn>NAME</TableColumn>
+              <TableColumn>ISIN</TableColumn>
+              <TableColumn>FACE VALUE</TableColumn>
+              <TableColumn>SECTOR</TableColumn>
+              <TableColumn>LISTING DATE</TableColumn>
+              <TableColumn>STATUS</TableColumn>
+              <TableColumn>ACTION</TableColumn>
+            </TableHeader>
+            <TableBody
+              emptyContent={isLoading ? "Loading..." : "No stocks found"}
+              isLoading={isLoading}
+            >
+              {stocks.map((stock) => (
+                <TableRow key={stock.Id}>
+                  <TableCell className="font-semibold">
+                    {stock.Symbol}
+                  </TableCell>
+                  <TableCell>{stock.Name}</TableCell>
+                  <TableCell>{stock.Isin}</TableCell>
+                  <TableCell>{stock.FaceValue}</TableCell>
+                  <TableCell>{stock.Sector || "-"}</TableCell>
+                  <TableCell>
+                    {stock.ListingDate
+                      ? (() => {
+                          const date = new Date(stock.ListingDate * 1000);
+                          const day = String(date.getDate()).padStart(2, "0");
+                          const month = String(date.getMonth() + 1).padStart(
+                            2,
+                            "0"
+                          );
+                          const year = date.getFullYear();
+                          return `${day}/${month}/${year}`;
+                        })()
+                      : "-"}
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      color={stock.IsActive ? "success" : "default"}
                       size="sm"
-                      variant="light"
-                      onPress={() => handleViewDetails(stock)}
-                      aria-label="View details"
+                      variant="flat"
                     >
-                      <FiEye className="text-lg" />
-                    </Button>
-                  </Tooltip>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                      {stock.IsActive ? "Active" : "Inactive"}
+                    </Chip>
+                  </TableCell>
+                  <TableCell>
+                    <Tooltip content="View details">
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="light"
+                        onPress={() => handleViewDetails(stock)}
+                        aria-label="View details"
+                      >
+                        <FiEye className="text-lg" />
+                      </Button>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
 
         {/* Pagination */}
@@ -439,8 +441,14 @@ export default function ListedStocksPage() {
                         <div className="space-y-1">
                           <p className="text-xs text-default-500">Symbol</p>
                           <div className="flex items-center gap-2">
-                            <p className="font-semibold">{selectedStock?.Symbol}</p>
-                            <Tooltip content={copiedField === "symbol" ? "Copied!" : "Copy"}>
+                            <p className="font-semibold">
+                              {selectedStock?.Symbol}
+                            </p>
+                            <Tooltip
+                              content={
+                                copiedField === "symbol" ? "Copied!" : "Copy"
+                              }
+                            >
                               <Button
                                 isIconOnly
                                 size="sm"
@@ -465,14 +473,23 @@ export default function ListedStocksPage() {
                         <div className="space-y-1">
                           <p className="text-xs text-default-500">ISIN</p>
                           <div className="flex items-center gap-2">
-                            <p className="font-semibold">{selectedStock?.Isin}</p>
-                            <Tooltip content={copiedField === "isin" ? "Copied!" : "Copy"}>
+                            <p className="font-semibold">
+                              {selectedStock?.Isin}
+                            </p>
+                            <Tooltip
+                              content={
+                                copiedField === "isin" ? "Copied!" : "Copy"
+                              }
+                            >
                               <Button
                                 isIconOnly
                                 size="sm"
                                 variant="light"
                                 onPress={() =>
-                                  handleCopyToClipboard(selectedStock?.Isin || "", "isin")
+                                  handleCopyToClipboard(
+                                    selectedStock?.Isin || "",
+                                    "isin"
+                                  )
                                 }
                               >
                                 {copiedField === "isin" ? (
@@ -487,7 +504,9 @@ export default function ListedStocksPage() {
 
                         <div className="space-y-1">
                           <p className="text-xs text-default-500">Face Value</p>
-                          <p className="font-semibold">{selectedStock?.FaceValue}</p>
+                          <p className="font-semibold">
+                            {selectedStock?.FaceValue}
+                          </p>
                         </div>
 
                         {selectedStock?.BseCode && (
@@ -497,7 +516,11 @@ export default function ListedStocksPage() {
                               <p className="font-semibold">
                                 {selectedStock.BseCode}
                               </p>
-                              <Tooltip content={copiedField === "bseCode" ? "Copied!" : "Copy"}>
+                              <Tooltip
+                                content={
+                                  copiedField === "bseCode" ? "Copied!" : "Copy"
+                                }
+                              >
                                 <Button
                                   isIconOnly
                                   size="sm"
@@ -522,17 +545,21 @@ export default function ListedStocksPage() {
 
                         {selectedStock?.ListingDate && (
                           <div className="space-y-1">
-                            <p className="text-xs text-default-500">Listing Date</p>
+                            <p className="text-xs text-default-500">
+                              Listing Date
+                            </p>
                             <p className="font-semibold">
                               {(() => {
                                 const date = new Date(
                                   selectedStock.ListingDate * 1000
                                 );
-                                const day = String(date.getDate()).padStart(2, "0");
-                                const month = String(date.getMonth() + 1).padStart(
+                                const day = String(date.getDate()).padStart(
                                   2,
                                   "0"
                                 );
+                                const month = String(
+                                  date.getMonth() + 1
+                                ).padStart(2, "0");
                                 const year = date.getFullYear();
                                 return `${day}/${month}/${year}`;
                               })()}
@@ -542,10 +569,9 @@ export default function ListedStocksPage() {
                       </div>
                     </AccordionItem>
 
-                    {/* Classification */}
-                    {(selectedStock?.MacroSector ||
-                      selectedStock?.Sector ||
-                      selectedStock?.Industry) && (
+                    {selectedStock?.MacroSector ||
+                    selectedStock?.Sector ||
+                    selectedStock?.Industry ? (
                       <AccordionItem
                         key="classification"
                         aria-label="Classification"
@@ -581,7 +607,9 @@ export default function ListedStocksPage() {
 
                           {selectedStock?.Industry && (
                             <div className="space-y-1">
-                              <p className="text-xs text-default-500">Industry</p>
+                              <p className="text-xs text-default-500">
+                                Industry
+                              </p>
                               <p className="font-semibold">
                                 {selectedStock.Industry}
                               </p>
@@ -589,7 +617,7 @@ export default function ListedStocksPage() {
                           )}
                         </div>
                       </AccordionItem>
-                    )}
+                    ) : null}
 
                     {/* System Information */}
                     <AccordionItem
@@ -608,14 +636,23 @@ export default function ListedStocksPage() {
                         <div className="space-y-1">
                           <p className="text-xs text-default-500">Stock ID</p>
                           <div className="flex items-center gap-2">
-                            <p className="font-mono text-sm break-all">{selectedStock?.Id}</p>
-                            <Tooltip content={copiedField === "id" ? "Copied!" : "Copy"}>
+                            <p className="font-mono text-sm break-all">
+                              {selectedStock?.Id}
+                            </p>
+                            <Tooltip
+                              content={
+                                copiedField === "id" ? "Copied!" : "Copy"
+                              }
+                            >
                               <Button
                                 isIconOnly
                                 size="sm"
                                 variant="light"
                                 onPress={() =>
-                                  handleCopyToClipboard(selectedStock?.Id || "", "id")
+                                  handleCopyToClipboard(
+                                    selectedStock?.Id || "",
+                                    "id"
+                                  )
                                 }
                               >
                                 {copiedField === "id" ? (
@@ -630,7 +667,9 @@ export default function ListedStocksPage() {
 
                         <div className="space-y-1">
                           <p className="text-xs text-default-500">Country ID</p>
-                          <p className="font-semibold">{selectedStock?.CountryId}</p>
+                          <p className="font-semibold">
+                            {selectedStock?.CountryId}
+                          </p>
                         </div>
 
                         <div className="space-y-1">
@@ -643,9 +682,13 @@ export default function ListedStocksPage() {
                         </div>
 
                         <div className="space-y-1">
-                          <p className="text-xs text-default-500">Listed Status</p>
+                          <p className="text-xs text-default-500">
+                            Listed Status
+                          </p>
                           <Chip
-                            color={selectedStock?.Listed ? "success" : "default"}
+                            color={
+                              selectedStock?.Listed ? "success" : "default"
+                            }
                             size="sm"
                             variant="flat"
                           >
