@@ -25,12 +25,20 @@ import { Textarea } from "@heroui/input";
 import { Switch } from "@heroui/switch";
 import { Tooltip } from "@heroui/tooltip";
 import { Pagination } from "@heroui/pagination";
-import { FiEye, FiEdit2, FiPlus, FiTrash2, FiDownload, FiSearch, FiX } from "react-icons/fi";
+import {
+  FiEye,
+  FiEdit2,
+  FiPlus,
+  FiTrash2,
+  FiDownload,
+  FiSearch,
+  FiX,
+} from "react-icons/fi";
 import { createClient } from "@/lib/supabase/client";
 import { v4 as uuidv4 } from "uuid";
 import axiosInstance from "@/lib/axios";
 import { formatEpochDate, dateToEpoch } from "@/utils/date";
-import { StockAutocomplete, Stock } from "@/components/StockAutocomplete";
+import { StockAutocomplete } from "@/components/StockAutocomplete";
 
 interface CorporateActionRecord {
   Id: string;
@@ -171,6 +179,15 @@ export default function CorporateActionRecordsPage() {
   const [initialTargetStockName, setInitialTargetStockName] =
     useState<string>("");
 
+  // Delete states
+  const [isDeleteRecordModalOpen, setIsDeleteRecordModalOpen] = useState(false);
+  const [isDeleteDetailModalOpen, setIsDeleteDetailModalOpen] = useState(false);
+  const [deletingRecord, setDeletingRecord] =
+    useState<CorporateActionRecord | null>(null);
+  const [deletingDetail, setDeletingDetail] =
+    useState<CorporateActionDetail | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Add states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newAction, setNewAction] = useState<NewCorporateAction>({
@@ -215,11 +232,15 @@ export default function CorporateActionRecordsPage() {
 
       // Initialize default date range (last 2 years)
       const now = new Date();
-      const twoYearsAgo = new Date(now.getFullYear() - 2, now.getMonth(), now.getDate());
-      setTempStartDate(twoYearsAgo.toISOString().split('T')[0]);
-      setTempEndDate(now.toISOString().split('T')[0]);
-      setStartDate(twoYearsAgo.toISOString().split('T')[0]);
-      setEndDate(now.toISOString().split('T')[0]);
+      const twoYearsAgo = new Date(
+        now.getFullYear() - 2,
+        now.getMonth(),
+        now.getDate()
+      );
+      setTempStartDate(twoYearsAgo.toISOString().split("T")[0]);
+      setTempEndDate(now.toISOString().split("T")[0]);
+      setStartDate(twoYearsAgo.toISOString().split("T")[0]);
+      setEndDate(now.toISOString().split("T")[0]);
 
       fetchCorporateActionTypes();
     };
@@ -286,9 +307,13 @@ export default function CorporateActionRecordsPage() {
 
   const handleClearFilters = () => {
     const now = new Date();
-    const twoYearsAgo = new Date(now.getFullYear() - 2, now.getMonth(), now.getDate());
-    const defaultStart = twoYearsAgo.toISOString().split('T')[0];
-    const defaultEnd = now.toISOString().split('T')[0];
+    const twoYearsAgo = new Date(
+      now.getFullYear() - 2,
+      now.getMonth(),
+      now.getDate()
+    );
+    const defaultStart = twoYearsAgo.toISOString().split("T")[0];
+    const defaultEnd = now.toISOString().split("T")[0];
 
     setTempStartDate(defaultStart);
     setTempEndDate(defaultEnd);
@@ -667,6 +692,70 @@ export default function CorporateActionRecordsPage() {
     }
   };
 
+  // Delete Record Handlers
+  const handleDeleteRecord = (record: CorporateActionRecord) => {
+    setDeletingRecord(record);
+    setIsDeleteRecordModalOpen(true);
+  };
+
+  const handleConfirmDeleteRecord = async () => {
+    if (!deletingRecord) return;
+
+    try {
+      setIsDeleting(true);
+      const response = await axiosInstance.delete(
+        `/corporate-action/records/${deletingRecord.Id}`
+      );
+
+      if (response.data.success) {
+        showToast("Record deleted successfully", "success");
+        setIsDeleteRecordModalOpen(false);
+        setDeletingRecord(null);
+        await fetchRecords();
+      } else {
+        showToast(response.data.message || "Failed to delete record", "error");
+      }
+    } catch (error: any) {
+      console.error("Error deleting record:", error);
+      const errorMessage = error.response?.data?.message || "Error deleting record";
+      showToast(errorMessage, "error");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Delete Detail Handlers
+  const handleDeleteDetail = (detail: CorporateActionDetail) => {
+    setDeletingDetail(detail);
+    setIsDeleteDetailModalOpen(true);
+  };
+
+  const handleConfirmDeleteDetail = async () => {
+    if (!deletingDetail || !selectedRecord) return;
+
+    try {
+      setIsDeleting(true);
+      const response = await axiosInstance.delete(
+        `/corporate-action/records/${selectedRecord.Id}/details/${deletingDetail.Id}`
+      );
+
+      if (response.data.success) {
+        showToast("Detail deleted successfully", "success");
+        setIsDeleteDetailModalOpen(false);
+        setDeletingDetail(null);
+        await fetchDetails(selectedRecord.Id);
+      } else {
+        showToast(response.data.message || "Failed to delete detail", "error");
+      }
+    } catch (error: any) {
+      console.error("Error deleting detail:", error);
+      const errorMessage = error.response?.data?.message || "Error deleting detail";
+      showToast(errorMessage, "error");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -715,7 +804,7 @@ export default function CorporateActionRecordsPage() {
                 type="date"
                 value={tempStartDate}
                 onValueChange={setTempStartDate}
-                max={new Date().toISOString().split('T')[0]}
+                max={new Date().toISOString().split("T")[0]}
                 size="sm"
               />
             </div>
@@ -725,7 +814,7 @@ export default function CorporateActionRecordsPage() {
                 type="date"
                 value={tempEndDate}
                 onValueChange={setTempEndDate}
-                max={new Date().toISOString().split('T')[0]}
+                max={new Date().toISOString().split("T")[0]}
                 size="sm"
               />
             </div>
@@ -752,70 +841,80 @@ export default function CorporateActionRecordsPage() {
 
         {/* Records Table */}
         <div className="max-h-[calc(100vh-400px)] overflow-auto">
-          <Table
-            aria-label="Corporate action records table"
-            isHeaderSticky
-          >
-          <TableHeader>
-            <TableColumn>ISIN</TableColumn>
-            <TableColumn>SYMBOL</TableColumn>
-            <TableColumn>STOCK NAME</TableColumn>
-            <TableColumn>ACTION TYPE</TableColumn>
-            <TableColumn>EX DATE</TableColumn>
-            <TableColumn>RECORD DATE</TableColumn>
-            <TableColumn>ALLOTMENT DATE</TableColumn>
-            <TableColumn>STATUS</TableColumn>
-            <TableColumn>ACTIONS</TableColumn>
-          </TableHeader>
-          <TableBody>
-            {records.map((record) => (
-              <TableRow key={record.Id}>
-                <TableCell>{record.Isin}</TableCell>
-                <TableCell>{record.Symbol}</TableCell>
-                <TableCell>{record.StockName}</TableCell>
-                <TableCell>
-                  <Chip size="sm" variant="dot" color="primary">
-                    {record.CorporateActionName}
-                  </Chip>
-                </TableCell>
-                <TableCell>{formatEpochDate(record.ExDate)}</TableCell>
-                <TableCell>{formatEpochDate(record.RecordDate)}</TableCell>
-                <TableCell>{formatEpochDate(record.AllotmentDate)}</TableCell>
-                <TableCell>
-                  <Chip
-                    color={record.IsActive ? "success" : "default"}
-                    size="sm"
-                    variant="flat"
-                  >
-                    {record.IsActive ? "Active" : "Inactive"}
-                  </Chip>
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Tooltip content="View Details">
-                      <Button
-                        size="sm"
-                        variant="light"
-                        isIconOnly
-                        onPress={() => handleViewDetails(record)}
-                      >
-                        <FiEye />
-                      </Button>
-                    </Tooltip>
-                    <Button
+          <Table aria-label="Corporate action records table" isHeaderSticky>
+            <TableHeader>
+              <TableColumn>ISIN</TableColumn>
+              <TableColumn>SYMBOL</TableColumn>
+              <TableColumn>STOCK NAME</TableColumn>
+              <TableColumn>ACTION TYPE</TableColumn>
+              <TableColumn>EX DATE</TableColumn>
+              <TableColumn>RECORD DATE</TableColumn>
+              <TableColumn>ALLOTMENT DATE</TableColumn>
+              <TableColumn>STATUS</TableColumn>
+              <TableColumn>ACTIONS</TableColumn>
+            </TableHeader>
+            <TableBody>
+              {records.map((record) => (
+                <TableRow key={record.Id}>
+                  <TableCell>{record.Isin}</TableCell>
+                  <TableCell>{record.Symbol}</TableCell>
+                  <TableCell>{record.StockName}</TableCell>
+                  <TableCell>
+                    <Chip size="sm" variant="dot" color="primary">
+                      {record.CorporateActionName}
+                    </Chip>
+                  </TableCell>
+                  <TableCell>{formatEpochDate(record.ExDate)}</TableCell>
+                  <TableCell>{formatEpochDate(record.RecordDate)}</TableCell>
+                  <TableCell>{formatEpochDate(record.AllotmentDate)}</TableCell>
+                  <TableCell>
+                    <Chip
+                      color={record.IsActive ? "success" : "default"}
                       size="sm"
-                      variant="light"
-                      isIconOnly
-                      onPress={() => handleEditRecord(record)}
+                      variant="flat"
                     >
-                      <FiEdit2 />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                      {record.IsActive ? "Active" : "Inactive"}
+                    </Chip>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Tooltip content="View Details">
+                        <Button
+                          size="sm"
+                          variant="light"
+                          isIconOnly
+                          onPress={() => handleViewDetails(record)}
+                        >
+                          <FiEye />
+                        </Button>
+                      </Tooltip>
+                      <Tooltip content="Edit Record">
+                        <Button
+                          size="sm"
+                          variant="light"
+                          isIconOnly
+                          onPress={() => handleEditRecord(record)}
+                        >
+                          <FiEdit2 />
+                        </Button>
+                      </Tooltip>
+                      <Tooltip content="Delete Record">
+                        <Button
+                          size="sm"
+                          variant="light"
+                          isIconOnly
+                          color="danger"
+                          onPress={() => handleDeleteRecord(record)}
+                        >
+                          <FiTrash2 />
+                        </Button>
+                      </Tooltip>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
 
         {/* Pagination */}
@@ -1041,6 +1140,17 @@ export default function CorporateActionRecordsPage() {
                                       onPress={() => handleEditDetail(detail)}
                                     >
                                       <FiEdit2 />
+                                    </Button>
+                                  </Tooltip>
+                                  <Tooltip content="Delete Detail">
+                                    <Button
+                                      size="sm"
+                                      variant="light"
+                                      isIconOnly
+                                      color="danger"
+                                      onPress={() => handleDeleteDetail(detail)}
+                                    >
+                                      <FiTrash2 />
                                     </Button>
                                   </Tooltip>
                                 </div>
@@ -1779,6 +1889,104 @@ export default function CorporateActionRecordsPage() {
                 isLoading={isSaving}
               >
                 Save Corporate Action
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        {/* Delete Record Confirmation Modal */}
+        <Modal
+          isOpen={isDeleteRecordModalOpen}
+          onClose={() => setIsDeleteRecordModalOpen(false)}
+          size="md"
+        >
+          <ModalContent>
+            <ModalHeader>Confirm Delete</ModalHeader>
+            <ModalBody>
+              {deletingRecord && (
+                <div className="space-y-4">
+                  <p className="text-default-700">
+                    Are you sure you want to delete this corporate action
+                    record?
+                  </p>
+                  <div className="rounded-lg bg-danger-50 p-4">
+                    <p className="text-sm font-semibold text-danger">
+                      {deletingRecord.Symbol} - {deletingRecord.StockName}
+                    </p>
+                    <p className="text-sm text-danger-600">
+                      {deletingRecord.CorporateActionName}
+                    </p>
+                    <p className="text-xs text-danger-500">
+                      Ex Date: {formatEpochDate(deletingRecord.ExDate)}
+                    </p>
+                  </div>
+                  <p className="text-sm text-default-500">
+                    This action cannot be undone.
+                  </p>
+                </div>
+              )}
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                variant="light"
+                onPress={() => setIsDeleteRecordModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                color="danger"
+                onPress={handleConfirmDeleteRecord}
+                isLoading={isDeleting}
+              >
+                Delete
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        {/* Delete Detail Confirmation Modal */}
+        <Modal
+          isOpen={isDeleteDetailModalOpen}
+          onClose={() => setIsDeleteDetailModalOpen(false)}
+          size="md"
+        >
+          <ModalContent>
+            <ModalHeader>Confirm Delete</ModalHeader>
+            <ModalBody>
+              {deletingDetail && (
+                <div className="space-y-4">
+                  <p className="text-default-700">
+                    Are you sure you want to delete this corporate action
+                    detail?
+                  </p>
+                  <div className="rounded-lg bg-danger-50 p-4">
+                    <p className="text-sm font-semibold text-danger">
+                      Target Stock: {deletingDetail.Symbol || "N/A"}
+                    </p>
+                    <p className="text-sm text-danger-600">
+                      Ratio: {formatNumber(deletingDetail.RatioQuantityHeld)} :{" "}
+                      {formatNumber(deletingDetail.RatioQuantityEntitled)}
+                    </p>
+                  </div>
+                  <p className="text-sm text-default-500">
+                    This action cannot be undone.
+                  </p>
+                </div>
+              )}
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                variant="light"
+                onPress={() => setIsDeleteDetailModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                color="danger"
+                onPress={handleConfirmDeleteDetail}
+                isLoading={isDeleting}
+              >
+                Delete
               </Button>
             </ModalFooter>
           </ModalContent>

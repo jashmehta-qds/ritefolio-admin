@@ -122,16 +122,17 @@ export async function POST(
       procedureName: 'public."InsertCorpActDetail"',
       dbName: process.env.PG_DEFAULT_DB,
       params: [
+        null, // p_added_row_id (OUT parameter)
         id, // p_corp_act_record_id
-        targetStockId || null, // p_target_stock_id
+        targetStockId && targetStockId.trim() !== '' ? targetStockId : null, // p_target_stock_id
         ratioQuantityHeld, // p_ratio_quantity_held
         ratioQuantityEntitled, // p_ratio_quantity_entitled
-        ratioBookValueHeld || null, // p_ratio_book_value_held
-        ratioBookValueEntitled || null, // p_ratio_book_value_entitled
-        targetSaleRow || false, // p_target_sale_row
-        referenceDocUrl || null, // p_reference_doc_url
-        isActive, // p_is_active
-        remark || null, // p_remark
+        ratioBookValueHeld ?? null, // p_ratio_book_value_held
+        ratioBookValueEntitled ?? null, // p_ratio_book_value_entitled
+        targetSaleRow ?? false, // p_target_sale_row
+        referenceDocUrl && referenceDocUrl.trim() !== '' ? referenceDocUrl : null, // p_reference_doc_url
+        isActive ?? true, // p_is_active
+        remark && remark.trim() !== '' ? remark : null, // p_remark
       ],
     });
 
