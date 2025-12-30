@@ -27,9 +27,17 @@ import { Switch } from "@heroui/switch";
 import { Accordion, AccordionItem } from "@heroui/accordion";
 import { Divider } from "@heroui/divider";
 import { Tooltip } from "@heroui/tooltip";
-import { FiPlus, FiSearch, FiEye, FiCopy, FiCheck } from "react-icons/fi";
+import {
+  FiPlus,
+  FiSearch,
+  FiEye,
+  FiCopy,
+  FiCheck,
+  FiEdit2,
+} from "react-icons/fi";
 import { createClient } from "@/lib/supabase/client";
 import axiosInstance from "@/lib/axios";
+import StockTypeAutocomplete from "@/components/StockTypeAutocomplete";
 
 interface Stock {
   Id: string;
@@ -44,6 +52,9 @@ interface Stock {
   MacroSector: string | null;
   Sector: string | null;
   Industry: string | null;
+  BasicIndustry: string | null;
+  SectoralIndex: string | null;
+  Slb: boolean | null;
   ListingDate: number | null;
   IsActive: boolean;
   CreatedOn?: number;
@@ -57,8 +68,11 @@ interface Country {
 
 interface InvestmentType {
   Id: number;
-  Name: string;
+  InvestmentId: number;
+  InvestmentCategory: string;
   ShortCode: string;
+  Description: string;
+  IsActive: boolean;
 }
 
 interface Exchange {
@@ -75,11 +89,18 @@ export default function ListedStocksPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
+  const [editingStock, setEditingStock] = useState<Stock | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error";
+  } | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -101,6 +122,12 @@ export default function ListedStocksPage() {
     slb: false,
     isActive: true,
   });
+
+  // Show toast notification
+  const showToast = (message: string, type: "success" | "error") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -145,8 +172,12 @@ export default function ListedStocksPage() {
       params.append("page", page.toString());
       params.append("limit", "50");
 
+      // Send search term to all searchable fields (OR logic in SQL)
       if (search.trim()) {
+        params.append("symbol", search);
+        params.append("isin", search);
         params.append("stockName", search);
+        params.append("bseCode", search);
       }
 
       const response = await axiosInstance.get(
@@ -205,18 +236,23 @@ export default function ListedStocksPage() {
 
   const handleAddStock = async () => {
     try {
+      // Send formData directly - investmentType is already stored as ID string
       const response = await axiosInstance.post("/stocks/listed", formData);
       const result = response.data;
 
       if (result.success) {
+        showToast("Stock added successfully", "success");
         handleCloseModal();
         fetchStocks();
       } else {
-        alert(`Error: ${result.message || result.error}`);
+        showToast(
+          result.message || result.error || "Failed to add stock",
+          "error"
+        );
       }
     } catch (error) {
       console.error("Error adding listed stock:", error);
-      alert("Failed to add stock. Please try again.");
+      showToast("Failed to add stock. Please try again.", "error");
     }
   };
 
@@ -253,6 +289,59 @@ export default function ListedStocksPage() {
       setTimeout(() => setCopiedField(null), 2000);
     } catch (error) {
       console.error("Failed to copy:", error);
+    }
+  };
+
+  const handleEditStock = (stock: Stock) => {
+    setEditingStock({ ...stock });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveStock = async () => {
+    if (!editingStock) return;
+
+    try {
+      setIsSaving(true);
+
+      const response = await axiosInstance.put(
+        `/stocks/listed/${editingStock.Id}`,
+        {
+          countryId: editingStock.CountryId,
+          investmentType: editingStock.InvestmentTypeId.toString(), // Send ID as string
+          isin: editingStock.Isin,
+          stockName: editingStock.Name,
+          faceValue: editingStock.FaceValue,
+          symbol: editingStock.Symbol,
+          bseCode: editingStock.BseCode,
+          macroSector: editingStock.MacroSector,
+          sector: editingStock.Sector,
+          industry: editingStock.Industry,
+          basicIndustry: editingStock.BasicIndustry,
+          sectoralIndex: editingStock.SectoralIndex,
+          slb: editingStock.Slb,
+          listingDate: editingStock.ListingDate,
+          isActive: editingStock.IsActive,
+        }
+      );
+
+      if (response.data.success) {
+        showToast("Stock updated successfully", "success");
+        setIsEditModalOpen(false);
+        setEditingStock(null);
+        await fetchStocks(currentPage, searchTerm);
+      } else {
+        showToast(
+          response.data.message ||
+            response.data.error ||
+            "Failed to update stock",
+          "error"
+        );
+      }
+    } catch (error) {
+      console.error("Error updating stock:", error);
+      showToast("Failed to update stock. Please try again.", "error");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -350,17 +439,30 @@ export default function ListedStocksPage() {
                     </Chip>
                   </TableCell>
                   <TableCell>
-                    <Tooltip content="View details">
-                      <Button
-                        isIconOnly
-                        size="sm"
-                        variant="light"
-                        onPress={() => handleViewDetails(stock)}
-                        aria-label="View details"
-                      >
-                        <FiEye className="text-lg" />
-                      </Button>
-                    </Tooltip>
+                    <div className="flex gap-2">
+                      <Tooltip content="View details">
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="light"
+                          onPress={() => handleViewDetails(stock)}
+                          aria-label="View details"
+                        >
+                          <FiEye className="text-lg" />
+                        </Button>
+                      </Tooltip>
+                      <Tooltip content="Edit stock">
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="light"
+                          onPress={() => handleEditStock(stock)}
+                          aria-label="Edit stock"
+                        >
+                          <FiEdit2 className="text-lg" />
+                        </Button>
+                      </Tooltip>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -778,21 +880,20 @@ export default function ListedStocksPage() {
                     </AutocompleteItem>
                   ))}
                 </Autocomplete>
-                <Select
+                <StockTypeAutocomplete
+                  name="investmentType"
                   label="Investment Type *"
-                  placeholder="Select investment type"
-                  selectedKeys={
-                    formData.investmentType ? [formData.investmentType] : []
+                  placeholder="Search investment type"
+                  value={formData.investmentType}
+                  onSelectionChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      investmentType: value?.toString() || "",
+                    })
                   }
-                  onChange={(e) =>
-                    setFormData({ ...formData, investmentType: e.target.value })
-                  }
-                  required
-                >
-                  {investmentTypes.map((type) => (
-                    <SelectItem key={type.ShortCode}>{type.Name}</SelectItem>
-                  ))}
-                </Select>
+                  isRequired
+                  size="md"
+                />
                 <Input
                   label="BSE Code"
                   placeholder="Enter BSE code"
@@ -855,6 +956,210 @@ export default function ListedStocksPage() {
             </ModalFooter>
           </ModalContent>
         </Modal>
+
+        {/* Edit Stock Modal */}
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          size="3xl"
+          scrollBehavior="inside"
+        >
+          <ModalContent>
+            <ModalHeader>Edit Listed Stock</ModalHeader>
+            <ModalBody>
+              {editingStock && (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Input
+                    label="Symbol"
+                    placeholder="Enter stock symbol"
+                    value={editingStock.Symbol}
+                    onChange={(e) =>
+                      setEditingStock({
+                        ...editingStock,
+                        Symbol: e.target.value,
+                      })
+                    }
+                    isRequired
+                  />
+                  <Input
+                    label="Stock Name"
+                    placeholder="Enter stock name"
+                    value={editingStock.Name}
+                    onChange={(e) =>
+                      setEditingStock({ ...editingStock, Name: e.target.value })
+                    }
+                    isRequired
+                  />
+                  <Input
+                    label="ISIN"
+                    placeholder="Enter ISIN"
+                    value={editingStock.Isin}
+                    onChange={(e) =>
+                      setEditingStock({ ...editingStock, Isin: e.target.value })
+                    }
+                    isRequired
+                  />
+                  <Input
+                    label="Face Value"
+                    type="number"
+                    placeholder="Enter face value"
+                    value={editingStock.FaceValue.toString()}
+                    onChange={(e) =>
+                      setEditingStock({
+                        ...editingStock,
+                        FaceValue: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    isRequired
+                  />
+                  <Autocomplete
+                    label="Country"
+                    placeholder="Search country"
+                    selectedKey={editingStock.CountryId.toString()}
+                    onSelectionChange={(key) =>
+                      setEditingStock({
+                        ...editingStock,
+                        CountryId: parseInt(key as string),
+                      })
+                    }
+                    isRequired
+                  >
+                    {countries.map((country) => (
+                      <AutocompleteItem key={country.Id.toString()}>
+                        {country.Name}
+                      </AutocompleteItem>
+                    ))}
+                  </Autocomplete>
+                  <StockTypeAutocomplete
+                    name="investmentType"
+                    label="Investment Type"
+                    placeholder="Search investment type"
+                    value={editingStock.InvestmentTypeId}
+                    onSelectionChange={(value) =>
+                      setEditingStock({
+                        ...editingStock,
+                        InvestmentTypeId: value || 0,
+                      })
+                    }
+                    isRequired
+                    size="md"
+                  />
+                  <Input
+                    label="BSE Code"
+                    placeholder="Enter BSE code"
+                    value={editingStock.BseCode || ""}
+                    onChange={(e) =>
+                      setEditingStock({
+                        ...editingStock,
+                        BseCode: e.target.value || null,
+                      })
+                    }
+                  />
+                  <Input
+                    label="Macro Sector"
+                    placeholder="Enter macro sector"
+                    value={editingStock.MacroSector || ""}
+                    onChange={(e) =>
+                      setEditingStock({
+                        ...editingStock,
+                        MacroSector: e.target.value || null,
+                      })
+                    }
+                  />
+                  <Input
+                    label="Sector"
+                    placeholder="Enter sector"
+                    value={editingStock.Sector || ""}
+                    onChange={(e) =>
+                      setEditingStock({
+                        ...editingStock,
+                        Sector: e.target.value || null,
+                      })
+                    }
+                  />
+                  <Input
+                    label="Industry"
+                    placeholder="Enter industry"
+                    value={editingStock.Industry || ""}
+                    onChange={(e) =>
+                      setEditingStock({
+                        ...editingStock,
+                        Industry: e.target.value || null,
+                      })
+                    }
+                  />
+                  <Input
+                    label="Basic Industry"
+                    placeholder="Enter basic industry"
+                    value={editingStock.BasicIndustry || ""}
+                    onChange={(e) =>
+                      setEditingStock({
+                        ...editingStock,
+                        BasicIndustry: e.target.value || null,
+                      })
+                    }
+                  />
+                  <Input
+                    label="Sectoral Index"
+                    placeholder="Enter sectoral index"
+                    value={editingStock.SectoralIndex || ""}
+                    onChange={(e) =>
+                      setEditingStock({
+                        ...editingStock,
+                        SectoralIndex: e.target.value || null,
+                      })
+                    }
+                  />
+                  <div className="flex items-center gap-4">
+                    <Switch
+                      isSelected={editingStock.Slb || false}
+                      onValueChange={(value) =>
+                        setEditingStock({ ...editingStock, Slb: value })
+                      }
+                    >
+                      SLB
+                    </Switch>
+                    <Switch
+                      isSelected={editingStock.IsActive}
+                      onValueChange={(value) =>
+                        setEditingStock({ ...editingStock, IsActive: value })
+                      }
+                    >
+                      Active
+                    </Switch>
+                  </div>
+                </div>
+              )}
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="light" onPress={() => setIsEditModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                color="primary"
+                onPress={handleSaveStock}
+                isLoading={isSaving}
+              >
+                Save Changes
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        {/* Toast Notification */}
+        {toast && (
+          <div className="fixed bottom-4 right-4 z-50">
+            <div
+              className={`rounded-lg px-6 py-4 shadow-lg ${
+                toast.type === "success"
+                  ? "bg-success text-success-foreground"
+                  : "bg-danger text-danger-foreground"
+              }`}
+            >
+              {toast.message}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

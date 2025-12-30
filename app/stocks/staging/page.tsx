@@ -26,9 +26,19 @@ import { Autocomplete, AutocompleteItem } from "@heroui/autocomplete";
 import { Accordion, AccordionItem } from "@heroui/accordion";
 import { Divider } from "@heroui/divider";
 import { Tooltip } from "@heroui/tooltip";
-import { FiPlus, FiSearch, FiEye, FiCopy, FiCheck } from "react-icons/fi";
+import { Switch } from "@heroui/switch";
+import {
+  FiPlus,
+  FiSearch,
+  FiEye,
+  FiCopy,
+  FiCheck,
+  FiEdit2,
+  FiArrowRight,
+} from "react-icons/fi";
 import { createClient } from "@/lib/supabase/client";
 import axiosInstance from "@/lib/axios";
+import StockTypeAutocomplete from "@/components/StockTypeAutocomplete";
 
 interface Stock {
   Id: string;
@@ -40,6 +50,9 @@ interface Stock {
   Listed: boolean;
   Symbol: string | null;
   BseCode: string | null;
+  BasicIndustry: string | null;
+  SectoralIndex: string | null;
+  Slb: boolean | null;
   IsActive: boolean;
   CreatedOn?: number;
 }
@@ -50,17 +63,36 @@ interface Country {
   Code: string;
 }
 
+interface InvestmentType {
+  Id: number;
+  InvestmentId: number;
+  InvestmentCategory: string;
+  ShortCode: string;
+  Description: string;
+  IsActive: boolean;
+}
+
 export default function StagingStocksPage() {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isMigrateModalOpen, setIsMigrateModalOpen] = useState(false);
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
+  const [editingStock, setEditingStock] = useState<Stock | null>(null);
+  const [migratingStock, setMigratingStock] = useState<Stock | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error";
+  } | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -71,7 +103,14 @@ export default function StagingStocksPage() {
     bseCode: "",
     stockName: "",
     countryId: "",
+    investmentType: "",
   });
+
+  // Show toast notification
+  const showToast = (message: string, type: "success" | "error") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -114,8 +153,12 @@ export default function StagingStocksPage() {
       params.append("page", page.toString());
       params.append("limit", "50");
 
+      // Send search term to all searchable fields (OR logic in SQL)
       if (search.trim()) {
+        params.append("symbol", search);
+        params.append("isin", search);
         params.append("stockName", search);
+        params.append("bseCode", search);
       }
 
       const response = await axiosInstance.get(
@@ -162,14 +205,18 @@ export default function StagingStocksPage() {
       const result = response.data;
 
       if (result.success) {
+        showToast("Stock added successfully", "success");
         handleCloseModal();
         fetchStocks();
       } else {
-        alert(`Error: ${result.message || result.error}`);
+        showToast(
+          result.message || result.error || "Failed to add stock",
+          "error"
+        );
       }
     } catch (error) {
       console.error("Error adding staging stock:", error);
-      alert("Failed to add stock. Please try again.");
+      showToast("Failed to add stock. Please try again.", "error");
     }
   };
 
@@ -181,6 +228,7 @@ export default function StagingStocksPage() {
       bseCode: "",
       stockName: "",
       countryId: "",
+      investmentType: "",
     });
   };
 
@@ -196,6 +244,94 @@ export default function StagingStocksPage() {
       setTimeout(() => setCopiedField(null), 2000);
     } catch (error) {
       console.error("Failed to copy:", error);
+    }
+  };
+
+  const handleEditStock = (stock: Stock) => {
+    setEditingStock({ ...stock });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveStock = async () => {
+    if (!editingStock) return;
+
+    try {
+      setIsSaving(true);
+
+      const response = await axiosInstance.put(
+        `/stocks/staging/${editingStock.Id}`,
+        {
+          countryId: editingStock.CountryId,
+          investmentType: editingStock.InvestmentTypeId?.toString() || null,
+          isin: editingStock.Isin,
+          stockName: editingStock.Name,
+          faceValue: editingStock.FaceValue,
+          symbol: editingStock.Symbol,
+          bseCode: editingStock.BseCode,
+          basicIndustry: editingStock.BasicIndustry,
+          sectoralIndex: editingStock.SectoralIndex,
+          slb: editingStock.Slb,
+          isActive: editingStock.IsActive,
+        }
+      );
+
+      if (response.data.success) {
+        showToast("Stock updated successfully", "success");
+        setIsEditModalOpen(false);
+        setEditingStock(null);
+        await fetchStocks(currentPage, searchTerm);
+      } else {
+        showToast(
+          response.data.message ||
+            response.data.error ||
+            "Failed to update stock",
+          "error"
+        );
+      }
+    } catch (error) {
+      console.error("Error updating stock:", error);
+      showToast("Failed to update stock. Please try again.", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleMigrateStock = (stock: Stock) => {
+    setMigratingStock(stock);
+    setIsMigrateModalOpen(true);
+  };
+
+  const handleConfirmMigrate = async () => {
+    if (!migratingStock) return;
+
+    try {
+      setIsMigrating(true);
+
+      const response = await axiosInstance.post(
+        `/stocks/staging/${migratingStock.Id}/migrate`
+      );
+
+      if (response.data.success) {
+        showToast(
+          "Stock migrated to listed stocks successfully",
+          "success"
+        );
+        setIsMigrateModalOpen(false);
+        setMigratingStock(null);
+        await fetchStocks(currentPage, searchTerm);
+      } else {
+        showToast(
+          response.data.message ||
+            response.data.error ||
+            "Failed to migrate stock",
+          "error"
+        );
+      }
+    } catch (error) {
+      console.error("Error migrating stock:", error);
+      showToast("Failed to migrate stock. Please try again.", "error");
+    } finally {
+      setIsMigrating(false);
     }
   };
 
@@ -280,17 +416,42 @@ export default function StagingStocksPage() {
                     </Chip>
                   </TableCell>
                   <TableCell>
-                    <Tooltip content="View details">
-                      <Button
-                        isIconOnly
-                        size="sm"
-                        variant="light"
-                        onPress={() => handleViewDetails(stock)}
-                        aria-label="View details"
-                      >
-                        <FiEye className="text-lg" />
-                      </Button>
-                    </Tooltip>
+                    <div className="flex gap-2">
+                      <Tooltip content="View details">
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="light"
+                          onPress={() => handleViewDetails(stock)}
+                          aria-label="View details"
+                        >
+                          <FiEye className="text-lg" />
+                        </Button>
+                      </Tooltip>
+                      <Tooltip content="Edit stock">
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="light"
+                          onPress={() => handleEditStock(stock)}
+                          aria-label="Edit stock"
+                        >
+                          <FiEdit2 className="text-lg" />
+                        </Button>
+                      </Tooltip>
+                      <Tooltip content="Migrate to listed stocks">
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="light"
+                          color="success"
+                          onPress={() => handleMigrateStock(stock)}
+                          aria-label="Migrate to listed stocks"
+                        >
+                          <FiArrowRight className="text-lg" />
+                        </Button>
+                      </Tooltip>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -645,6 +806,19 @@ export default function StagingStocksPage() {
                     </AutocompleteItem>
                   ))}
                 </Autocomplete>
+                <StockTypeAutocomplete
+                  name="investmentType"
+                  label="Investment Type"
+                  placeholder="Search investment type (optional)"
+                  value={formData.investmentType}
+                  onSelectionChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      investmentType: value?.toString() || "",
+                    })
+                  }
+                  size="md"
+                />
               </div>
               <p className="mt-2 text-sm text-default-500">
                 * At least one of Symbol, ISIN, or BSE Code must be provided
@@ -660,6 +834,248 @@ export default function StagingStocksPage() {
             </ModalFooter>
           </ModalContent>
         </Modal>
+
+        {/* Edit Stock Modal */}
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          size="3xl"
+          scrollBehavior="inside"
+        >
+          <ModalContent>
+            <ModalHeader>Edit Staging Stock</ModalHeader>
+            <ModalBody>
+              {editingStock && (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Input
+                    label="Symbol"
+                    placeholder="Enter stock symbol"
+                    value={editingStock.Symbol || ""}
+                    onChange={(e) =>
+                      setEditingStock({
+                        ...editingStock,
+                        Symbol: e.target.value || null,
+                      })
+                    }
+                  />
+                  <Input
+                    label="Stock Name"
+                    placeholder="Enter stock name"
+                    value={editingStock.Name || ""}
+                    onChange={(e) =>
+                      setEditingStock({
+                        ...editingStock,
+                        Name: e.target.value || null,
+                      })
+                    }
+                  />
+                  <Input
+                    label="ISIN"
+                    placeholder="Enter ISIN"
+                    value={editingStock.Isin || ""}
+                    onChange={(e) =>
+                      setEditingStock({
+                        ...editingStock,
+                        Isin: e.target.value || null,
+                      })
+                    }
+                  />
+                  <Input
+                    label="Face Value"
+                    type="number"
+                    placeholder="Enter face value"
+                    value={editingStock.FaceValue?.toString() || ""}
+                    onChange={(e) =>
+                      setEditingStock({
+                        ...editingStock,
+                        FaceValue: parseFloat(e.target.value) || null,
+                      })
+                    }
+                  />
+                  <Autocomplete
+                    label="Country"
+                    placeholder="Search country"
+                    selectedKey={editingStock.CountryId?.toString() || ""}
+                    onSelectionChange={(key) =>
+                      setEditingStock({
+                        ...editingStock,
+                        CountryId: key ? parseInt(key as string) : null,
+                      })
+                    }
+                  >
+                    {countries.map((country) => (
+                      <AutocompleteItem key={country.Id.toString()}>
+                        {country.Name}
+                      </AutocompleteItem>
+                    ))}
+                  </Autocomplete>
+                  <StockTypeAutocomplete
+                    name="investmentType"
+                    label="Investment Type"
+                    placeholder="Search investment type"
+                    value={editingStock.InvestmentTypeId || undefined}
+                    onSelectionChange={(value) =>
+                      setEditingStock({
+                        ...editingStock,
+                        InvestmentTypeId: value || null,
+                      })
+                    }
+                    size="md"
+                  />
+                  <Input
+                    label="BSE Code"
+                    placeholder="Enter BSE code"
+                    value={editingStock.BseCode || ""}
+                    onChange={(e) =>
+                      setEditingStock({
+                        ...editingStock,
+                        BseCode: e.target.value || null,
+                      })
+                    }
+                  />
+                  <Input
+                    label="Basic Industry"
+                    placeholder="Enter basic industry"
+                    value={editingStock.BasicIndustry || ""}
+                    onChange={(e) =>
+                      setEditingStock({
+                        ...editingStock,
+                        BasicIndustry: e.target.value || null,
+                      })
+                    }
+                  />
+                  <Input
+                    label="Sectoral Index"
+                    placeholder="Enter sectoral index"
+                    value={editingStock.SectoralIndex || ""}
+                    onChange={(e) =>
+                      setEditingStock({
+                        ...editingStock,
+                        SectoralIndex: e.target.value || null,
+                      })
+                    }
+                  />
+                  <div className="flex items-center gap-4">
+                    <Switch
+                      isSelected={editingStock.Slb || false}
+                      onValueChange={(value) =>
+                        setEditingStock({ ...editingStock, Slb: value })
+                      }
+                    >
+                      SLB
+                    </Switch>
+                    <Switch
+                      isSelected={editingStock.IsActive}
+                      onValueChange={(value) =>
+                        setEditingStock({ ...editingStock, IsActive: value })
+                      }
+                    >
+                      Active
+                    </Switch>
+                  </div>
+                </div>
+              )}
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="light" onPress={() => setIsEditModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                color="primary"
+                onPress={handleSaveStock}
+                isLoading={isSaving}
+              >
+                Save Changes
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        {/* Migrate Confirmation Modal */}
+        <Modal
+          isOpen={isMigrateModalOpen}
+          onClose={() => setIsMigrateModalOpen(false)}
+          size="md"
+        >
+          <ModalContent>
+            <ModalHeader>Migrate to Listed Stocks</ModalHeader>
+            <ModalBody>
+              {migratingStock && (
+                <div className="space-y-4">
+                  <p className="text-default-700">
+                    Are you sure you want to migrate this stock to the listed
+                    stocks directory?
+                  </p>
+                  <div className="rounded-lg bg-default-100 p-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-default-500">Symbol:</span>
+                        <span className="font-semibold">
+                          {migratingStock.Symbol || "N/A"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-default-500">Name:</span>
+                        <span className="font-semibold">
+                          {migratingStock.Name || "N/A"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-default-500">ISIN:</span>
+                        <span className="font-semibold">
+                          {migratingStock.Isin || "N/A"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-default-500">BSE Code:</span>
+                        <span className="font-semibold">
+                          {migratingStock.BseCode || "N/A"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-warning-50 p-4">
+                    <p className="text-sm text-warning-700">
+                      <strong>Warning:</strong> This action will remove the stock
+                      from staging and add it to the listed stocks directory. This
+                      action cannot be undone.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                variant="light"
+                onPress={() => setIsMigrateModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                color="success"
+                onPress={handleConfirmMigrate}
+                isLoading={isMigrating}
+              >
+                Migrate to Listed Stocks
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        {/* Toast Notification */}
+        {toast && (
+          <div className="fixed bottom-4 right-4 z-50">
+            <div
+              className={`rounded-lg px-6 py-4 shadow-lg ${
+                toast.type === "success"
+                  ? "bg-success text-success-foreground"
+                  : "bg-danger text-danger-foreground"
+              }`}
+            >
+              {toast.message}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
