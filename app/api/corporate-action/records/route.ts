@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { callFunction, callProcedure } from "@/utils/db";
 import { getCurrentFYEndEpoch, getFYStartEpochByYear } from "@/utils/date";
 import { callBulkUpsertCorpActionLogs } from "@/utils/corporateAction";
+import { publishToQueue } from "@/utils/rabbitmq";
 
 interface CorporateActionRecord {
   Id: string;
@@ -189,6 +190,49 @@ export async function POST(request: NextRequest) {
 
     // Call BulkUpsertCorpActionLogs procedure after successful add
     await callBulkUpsertCorpActionLogs();
+
+    // Publish to RabbitMQ queue if corpActionTypeId is 16 (Strategic rebranding)
+    if (corpActionTypeId === 16) {
+      try {
+        const queuePayload = {
+          sourceStockId,
+          corpActionTypeId,
+          exDate,
+          recordDate,
+          allotmentDate,
+          details,
+          remark,
+          timestamp: Date.now(),
+        };
+
+        const queue = process.env.CORPORATE_ACTION_QUEUE;
+
+        if (!queue) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Failed to add corporate action",
+              message: "RabbitMQ queue name is not configured",
+            },
+            { status: 404 }
+          );
+        }
+
+        await publishToQueue(queue, queuePayload);
+        console.log(
+          "Successfully published Strategic rebranding corporate action to queue"
+        );
+      } catch (queueError) {
+        // Log error but don't fail the operation - queue publishing is supplementary
+        console.error(
+          "Failed to publish to RabbitMQ queue:",
+          queueError instanceof Error ? queueError.message : "Unknown error"
+        );
+        console.warn(
+          "Corporate action added successfully but RabbitMQ publishing failed"
+        );
+      }
+    }
 
     return NextResponse.json(
       {
