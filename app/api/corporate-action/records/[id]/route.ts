@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callProcedure } from "@/utils/db";
+import { callBulkUpsertCorpActionLogs } from "@/utils/corporateAction";
 
 interface UpdateRecordParams {
   sourceStockId: string;
@@ -52,6 +53,9 @@ export async function PUT(
       ],
     });
 
+    // Call BulkUpsertCorpActionLogs procedure after successful update
+    await callBulkUpsertCorpActionLogs();
+
     return NextResponse.json(
       {
         success: true,
@@ -79,6 +83,7 @@ export async function DELETE(
 ) {
   try {
     const { id: recordId } = await params;
+    const body: UpdateRecordParams = await request.json();
 
     if (!recordId) {
       return NextResponse.json(
@@ -97,6 +102,9 @@ export async function DELETE(
       params: [recordId],
     });
 
+    // Call BulkUpsertCorpActionLogs procedure after successful delete
+    await callBulkUpsertCorpActionLogs();
+
     return NextResponse.json(
       {
         success: true,
@@ -108,12 +116,17 @@ export async function DELETE(
     console.error("Error deleting corporate action record:", error);
 
     // Check for foreign key constraint violation
-    if (error?.code === '23503' || error?.message?.includes('foreign key') || error?.message?.includes('violates foreign key constraint')) {
+    if (
+      error?.code === "23503" ||
+      error?.message?.includes("foreign key") ||
+      error?.message?.includes("violates foreign key constraint")
+    ) {
       return NextResponse.json(
         {
           success: false,
           error: "Cannot delete record",
-          message: "This corporate action record has associated details. Please delete all detail records first before deleting the main record.",
+          message:
+            "This corporate action record has associated details. Please delete all detail records first before deleting the main record.",
         },
         { status: 409 } // 409 Conflict
       );

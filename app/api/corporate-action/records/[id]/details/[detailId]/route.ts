@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callProcedure } from "@/utils/db";
+import { callBulkUpsertCorpActionLogs } from "@/utils/corporateAction";
 
 interface UpdateDetailParams {
   actionRecordId: string;
@@ -57,6 +58,9 @@ export async function PUT(
       ],
     });
 
+    // Call BulkUpsertCorpActionLogs procedure after successful update
+    await callBulkUpsertCorpActionLogs();
+
     return NextResponse.json(
       {
         success: true,
@@ -84,6 +88,7 @@ export async function DELETE(
 ) {
   try {
     const { detailId } = await params;
+    const body: UpdateDetailParams = await request.json();
 
     if (!detailId) {
       return NextResponse.json(
@@ -101,6 +106,9 @@ export async function DELETE(
       dbName: process.env.PG_DEFAULT_DB,
       params: [detailId],
     });
+
+    // Call BulkUpsertCorpActionLogs procedure after successful delete
+    await callBulkUpsertCorpActionLogs();
 
     return NextResponse.json(
       {
