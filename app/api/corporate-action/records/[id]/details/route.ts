@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callFunction, callProcedure } from "@/utils/db";
+import { callBulkUpsertCorpActionLogs } from "@/utils/corporateAction";
 
 interface CorporateActionDetail {
   Id: string;
@@ -124,17 +125,22 @@ export async function POST(
       params: [
         null, // p_added_row_id (OUT parameter)
         id, // p_corp_act_record_id
-        targetStockId && targetStockId.trim() !== '' ? targetStockId : null, // p_target_stock_id
+        targetStockId && targetStockId.trim() !== "" ? targetStockId : null, // p_target_stock_id
         ratioQuantityHeld, // p_ratio_quantity_held
         ratioQuantityEntitled, // p_ratio_quantity_entitled
         ratioBookValueHeld ?? null, // p_ratio_book_value_held
         ratioBookValueEntitled ?? null, // p_ratio_book_value_entitled
         targetSaleRow ?? false, // p_target_sale_row
-        referenceDocUrl && referenceDocUrl.trim() !== '' ? referenceDocUrl : null, // p_reference_doc_url
+        referenceDocUrl && referenceDocUrl.trim() !== ""
+          ? referenceDocUrl
+          : null, // p_reference_doc_url
         isActive ?? true, // p_is_active
-        remark && remark.trim() !== '' ? remark : null, // p_remark
+        remark && remark.trim() !== "" ? remark : null, // p_remark
       ],
     });
+
+    // Call BulkUpsertCorpActionLogs procedure after successful add
+    await callBulkUpsertCorpActionLogs();
 
     return NextResponse.json(
       {

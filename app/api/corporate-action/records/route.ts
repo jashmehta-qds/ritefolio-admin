@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callFunction, callProcedure } from "@/utils/db";
 import { getCurrentFYEndEpoch, getFYStartEpochByYear } from "@/utils/date";
+import { callBulkUpsertCorpActionLogs } from "@/utils/corporateAction";
 
 interface CorporateActionRecord {
   Id: string;
@@ -185,6 +186,9 @@ export async function POST(request: NextRequest) {
         remark ?? null, // p_remark
       ],
     });
+
+    // Call BulkUpsertCorpActionLogs procedure after successful add
+    await callBulkUpsertCorpActionLogs();
 
     return NextResponse.json(
       {
