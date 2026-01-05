@@ -490,6 +490,7 @@ export default function CorporateActionRecordsPage() {
             ? Number(editingDetail.RatioBookValueEntitled)
             : null,
           targetSaleRow: editingDetail.TargetSaleRow,
+          referenceDocUrl: editingDetail.ReferenceDocUrl,
           remark: editingDetail.Remark,
           isActive: editingDetail.IsActive,
         }
@@ -1408,6 +1409,19 @@ export default function CorporateActionRecordsPage() {
                         RatioBookValueEntitled: value
                           ? parseFloat(value)
                           : null,
+                      })
+                    }
+                  />
+
+                  <Input
+                    label="Reference Document URL"
+                    type="url"
+                    placeholder="https://example.com/document.pdf"
+                    value={editingDetail.ReferenceDocUrl || ""}
+                    onValueChange={(value) =>
+                      setEditingDetail({
+                        ...editingDetail,
+                        ReferenceDocUrl: value || null,
                       })
                     }
                   />
