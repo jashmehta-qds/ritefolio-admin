@@ -475,6 +475,17 @@ export default function CorporateActionRecordsPage() {
     if (!editingDetail || !selectedRecord) return;
 
     try {
+      // Validate required fields
+      if (!editingDetail.TargetStockId) {
+        showToast("Please select a target stock", "error");
+        return;
+      }
+
+      if (!editingDetail.RatioQuantityHeld || !editingDetail.RatioQuantityEntitled) {
+        showToast("Please fill in all required ratio quantities", "error");
+        return;
+      }
+
       setIsSaving(true);
       const response = await axiosInstance.put(
         `/corporate-action/records/${selectedRecord.Id}/details/${editingDetail.Id}`,
@@ -532,6 +543,11 @@ export default function CorporateActionRecordsPage() {
 
     try {
       // Validate required fields
+      if (!newDetail.targetStockId) {
+        showToast("Please select a target stock", "error");
+        return;
+      }
+
       if (!newDetail.ratioQuantityHeld || !newDetail.ratioQuantityEntitled) {
         showToast("Please fill in all required ratio quantities", "error");
         return;
@@ -649,6 +665,14 @@ export default function CorporateActionRecordsPage() {
 
       // Validate each detail row
       for (const detail of newAction.details) {
+        if (!detail.targetStockId) {
+          showToast(
+            "Please select a target stock for all detail rows",
+            "error"
+          );
+          return;
+        }
+
         if (!detail.ratioQuantityHeld || !detail.ratioQuantityEntitled) {
           showToast(
             "Please fill in ratio quantities for all detail rows",
@@ -1353,6 +1377,7 @@ export default function CorporateActionRecordsPage() {
                       }
                     }}
                     initialStockName={initialTargetStockName}
+                    isRequired
                   />
 
                   <Input
@@ -1488,7 +1513,7 @@ export default function CorporateActionRecordsPage() {
               <div className="space-y-4">
                 <StockAutocomplete
                   name="targetStock"
-                  label="Target Stock (Optional)"
+                  label="Target Stock"
                   placeholder="Search by stock name, symbol, ISIN, or BSE code"
                   value={newDetail.targetStockId || ""}
                   onSelectionChange={(stockId, stock) => {
@@ -1507,6 +1532,7 @@ export default function CorporateActionRecordsPage() {
                     }
                   }}
                   initialStockName={initialTargetStockName}
+                  isRequired
                 />
 
                 <Input
@@ -1765,7 +1791,7 @@ export default function CorporateActionRecordsPage() {
 
                           <StockAutocomplete
                             name={`targetStock-${detail.tempId}`}
-                            label="Target Stock (Optional)"
+                            label="Target Stock"
                             placeholder="Search by stock name, symbol, ISIN, or BSE code"
                             value={detail.targetStockId || ""}
                             onSelectionChange={(stockId, stock) => {
@@ -1793,6 +1819,7 @@ export default function CorporateActionRecordsPage() {
                             initialStockName={
                               targetStockNames[detail.tempId] || ""
                             }
+                            isRequired
                           />
 
                           <div className="grid grid-cols-2 gap-4">
