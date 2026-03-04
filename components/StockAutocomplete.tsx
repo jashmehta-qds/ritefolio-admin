@@ -32,7 +32,7 @@ interface StockAutocompleteProps {
   isDisabled?: boolean;
   description?: string;
   startContent?: React.ReactNode;
-  investmentTypeId?: number;
+  investmentTypeIds?: number[];
   sector?: string;
   minSearchLength?: number;
   maxResults?: number;
@@ -53,7 +53,7 @@ export const StockAutocomplete: React.FC<StockAutocompleteProps> = ({
   isDisabled = false,
   description,
   startContent,
-  investmentTypeId,
+  investmentTypeIds,
   sector,
   minSearchLength = 2,
   maxResults = 50,
@@ -122,8 +122,10 @@ export const StockAutocomplete: React.FC<StockAutocompleteProps> = ({
         params.append("isActive", "true");
         params.append("limit", maxResults.toString());
 
-        if (investmentTypeId) {
-          params.append("investmentTypeId", investmentTypeId.toString());
+        if (investmentTypeIds && investmentTypeIds.length > 0) {
+          investmentTypeIds.forEach((id) =>
+            params.append("investmentTypeId", id.toString())
+          );
         }
         if (sector) {
           params.append("sector", sector);
@@ -166,7 +168,7 @@ export const StockAutocomplete: React.FC<StockAutocompleteProps> = ({
         }
       }
     },
-    [investmentTypeId, sector, minSearchLength, maxResults]
+    [investmentTypeIds, sector, minSearchLength, maxResults]
   );
 
   // Effect to trigger search when debounced value changes

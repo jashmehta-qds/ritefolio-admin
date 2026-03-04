@@ -80,6 +80,8 @@ export default function UnlistedStocksPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterCountryId, setFilterCountryId] = useState<string>("");
+  const [filterInvestmentTypes, setFilterInvestmentTypes] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [toast, setToast] = useState<{
@@ -134,8 +136,8 @@ export default function UnlistedStocksPage() {
   // Debounced search effect
   useEffect(() => {
     const timer = setTimeout(() => {
-      setCurrentPage(1); // Reset to first page on search
-      fetchStocks(1, searchTerm);
+      setCurrentPage(1);
+      fetchStocks(1, searchTerm, filterCountryId, filterInvestmentTypes);
     }, 500);
 
     return () => clearTimeout(timer);
@@ -143,10 +145,21 @@ export default function UnlistedStocksPage() {
 
   // Fetch stocks when page changes
   useEffect(() => {
-    fetchStocks(currentPage, searchTerm);
+    fetchStocks(currentPage, searchTerm, filterCountryId, filterInvestmentTypes);
   }, [currentPage]);
 
-  const fetchStocks = async (page: number = 1, search: string = "") => {
+  // Fetch stocks when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+    fetchStocks(1, searchTerm, filterCountryId, filterInvestmentTypes);
+  }, [filterCountryId, filterInvestmentTypes]);
+
+  const fetchStocks = async (
+    page: number = 1,
+    search: string = "",
+    countryId: string = "",
+    investmentTypes: string[] = []
+  ) => {
     try {
       setIsLoading(true);
 
@@ -162,6 +175,9 @@ export default function UnlistedStocksPage() {
         params.append("stockName", search);
         params.append("bseCode", search);
       }
+
+      if (countryId) params.append("countryId", countryId);
+      investmentTypes.forEach((id) => params.append("investmentType", id));
 
       const response = await axiosInstance.get(
         `/stocks/unlisted?${params.toString()}`
@@ -214,7 +230,7 @@ export default function UnlistedStocksPage() {
       if (result.success) {
         showToast("Stock added successfully", "success");
         handleCloseModal();
-        fetchStocks();
+        fetchStocks(1, searchTerm, filterCountryId, filterInvestmentTypes);
       } else {
         showToast(
           result.message || result.error || "Failed to add stock",
@@ -347,15 +363,59 @@ export default function UnlistedStocksPage() {
           </Button>
         </div>
 
-        {/* Search */}
-        <div className="mb-4">
+        {/* Search and Filters */}
+        <div className="mb-4 flex flex-wrap items-end gap-3">
           <Input
-            placeholder="Search by name, symbol, or ISIN..."
+            placeholder="Search by name, symbol, ISIN, or BSE code..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             startContent={<FiSearch />}
             className="max-w-md"
           />
+          <Autocomplete
+            placeholder="Filter by country"
+            selectedKey={filterCountryId || null}
+            onSelectionChange={(key) =>
+              setFilterCountryId(key as string || "")
+            }
+            className="max-w-[200px]"
+            size="md"
+          >
+            {countries.map((country) => (
+              <AutocompleteItem key={country.Id.toString()}>
+                {country.Name}
+              </AutocompleteItem>
+            ))}
+          </Autocomplete>
+          <Select
+            placeholder="Filter by investment type"
+            selectionMode="multiple"
+            selectedKeys={new Set(filterInvestmentTypes)}
+            onSelectionChange={(keys) => {
+              if (keys === "all") return;
+              setFilterInvestmentTypes(Array.from(keys as Set<string>));
+            }}
+            className="max-w-[220px]"
+            size="md"
+          >
+            {investmentTypes.map((type) => (
+              <SelectItem key={type.Id.toString()} textValue={`${type.ShortCode} - ${type.InvestmentCategory}`}>
+                {type.ShortCode} - {type.InvestmentCategory}
+              </SelectItem>
+            ))}
+          </Select>
+          {(filterCountryId || filterInvestmentTypes.length > 0) && (
+            <Button
+              variant="flat"
+              size="md"
+              onPress={() => {
+                setFilterCountryId("");
+                setFilterInvestmentTypes([]);
+              }}
+            >
+              Clear Filters
+            </Button>
+          )}
         </div>
 
         {/* Stocks Table */}
