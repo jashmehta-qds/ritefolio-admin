@@ -44,9 +44,10 @@ export async function GET(request: NextRequest) {
     const isin = searchParams.get("isin") || null;
     const stockName = searchParams.get("stockName") || null;
     const bseCode = searchParams.get("bseCode") || null;
-    const investmentType = searchParams.get("investmentType")
-      ? parseInt(searchParams.get("investmentType")!)
-      : null;
+    const investmentType = (() => {
+      const ids = searchParams.getAll("investmentType").map(Number).filter((n) => !isNaN(n));
+      return ids.length > 0 ? ids[0] : null;
+    })();
     const countryId = searchParams.get("countryId")
       ? parseInt(searchParams.get("countryId")!)
       : null;

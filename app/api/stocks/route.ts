@@ -47,7 +47,10 @@ export async function GET(request: NextRequest) {
     const isin = searchParams.get("isin");
     const stockName = searchParams.get("stockName");
     const bseCode = searchParams.get("bseCode");
-    const investmentTypeId = searchParams.get("investmentTypeId");
+    const investmentTypeIds = searchParams
+      .getAll("investmentTypeId")
+      .map(Number)
+      .filter((n) => !isNaN(n));
     const countryId = searchParams.get("countryId");
     const isListed = searchParams.get("isListed");
     const isActive = searchParams.get("isActive");
@@ -66,7 +69,7 @@ export async function GET(request: NextRequest) {
         searchValue, // p_isin
         searchValue, // p_stock_name
         searchValue, // p_bse_code
-        investmentTypeId ? parseInt(investmentTypeId) : null, // p_investment_type
+        investmentTypeIds.length > 0 ? investmentTypeIds : null, // p_investment_type
         countryId ? parseInt(countryId) : null, // p_country_id
         isListed !== null ? isListed === "true" : null, // p_is_listed
         isActive !== null ? isActive === "true" : true, // p_is_active (default true)

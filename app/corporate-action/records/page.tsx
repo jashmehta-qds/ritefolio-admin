@@ -113,6 +113,10 @@ interface PaginationInfo {
   hasPreviousPage: boolean;
 }
 
+const CA_INVESTMENT_TYPE_IDS = [
+  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 21, 23, 31, 32, 33, 34,
+];
+
 export default function CorporateActionRecordsPage() {
   const [records, setRecords] = useState<CorporateActionRecord[]>([]);
   const [selectedRecord, setSelectedRecord] =
@@ -235,7 +239,7 @@ export default function CorporateActionRecordsPage() {
       const twoYearsAgo = new Date(
         now.getFullYear() - 2,
         now.getMonth(),
-        now.getDate()
+        now.getDate(),
       );
       setTempStartDate(twoYearsAgo.toISOString().split("T")[0]);
       setTempEndDate(now.toISOString().split("T")[0]);
@@ -275,7 +279,7 @@ export default function CorporateActionRecordsPage() {
       }
 
       const response = await axiosInstance.get(
-        `/corporate-action/records?${params.toString()}`
+        `/corporate-action/records?${params.toString()}`,
       );
       const result = response.data;
 
@@ -287,7 +291,7 @@ export default function CorporateActionRecordsPage() {
       } else {
         console.error(
           "Failed to fetch corporate action records:",
-          result.error
+          result.error,
         );
         showToast("Failed to fetch records", "error");
       }
@@ -310,7 +314,7 @@ export default function CorporateActionRecordsPage() {
     const twoYearsAgo = new Date(
       now.getFullYear() - 2,
       now.getMonth(),
-      now.getDate()
+      now.getDate(),
     );
     const defaultStart = twoYearsAgo.toISOString().split("T")[0];
     const defaultEnd = now.toISOString().split("T")[0];
@@ -329,7 +333,7 @@ export default function CorporateActionRecordsPage() {
 
       if (result.success) {
         setCorporateActionTypes(
-          result.data.filter((type: CorporateActionType) => type.IsActive)
+          result.data.filter((type: CorporateActionType) => type.IsActive),
         );
       }
     } catch (error) {
@@ -341,7 +345,7 @@ export default function CorporateActionRecordsPage() {
     try {
       setIsLoadingDetails(true);
       const response = await axiosInstance.get(
-        `/corporate-action/records/${recordId}/details`
+        `/corporate-action/records/${recordId}/details`,
       );
       const result = response.data;
 
@@ -350,7 +354,7 @@ export default function CorporateActionRecordsPage() {
       } else {
         console.error(
           "Failed to fetch corporate action details:",
-          result.error
+          result.error,
         );
       }
     } catch (error) {
@@ -389,7 +393,7 @@ export default function CorporateActionRecordsPage() {
     // Fetch the stock details to get the stock name for the autocomplete
     try {
       const response = await axiosInstance.get(
-        `/stocks?stockId=${record.SourceStockId}`
+        `/stocks?stockId=${record.SourceStockId}`,
       );
       if (
         response.data.success &&
@@ -423,7 +427,7 @@ export default function CorporateActionRecordsPage() {
           allotmentDate: editingRecord.AllotmentDate,
           remark: editingRecord.Remark,
           isActive: editingRecord.IsActive,
-        }
+        },
       );
 
       if (response.data.success) {
@@ -449,7 +453,7 @@ export default function CorporateActionRecordsPage() {
     if (detail.TargetStockId) {
       try {
         const response = await axiosInstance.get(
-          `/stocks?stockId=${detail.TargetStockId}`
+          `/stocks?stockId=${detail.TargetStockId}`,
         );
         if (
           response.data.success &&
@@ -481,7 +485,10 @@ export default function CorporateActionRecordsPage() {
         return;
       }
 
-      if (!editingDetail.RatioQuantityHeld || !editingDetail.RatioQuantityEntitled) {
+      if (
+        !editingDetail.RatioQuantityHeld ||
+        !editingDetail.RatioQuantityEntitled
+      ) {
         showToast("Please fill in all required ratio quantities", "error");
         return;
       }
@@ -504,7 +511,7 @@ export default function CorporateActionRecordsPage() {
           referenceDocUrl: editingDetail.ReferenceDocUrl,
           remark: editingDetail.Remark,
           isActive: editingDetail.IsActive,
-        }
+        },
       );
 
       if (response.data.success) {
@@ -570,7 +577,7 @@ export default function CorporateActionRecordsPage() {
           referenceDocUrl: newDetail.referenceDocUrl,
           remark: newDetail.remark,
           isActive: true,
-        }
+        },
       );
 
       if (response.data.success) {
@@ -635,12 +642,12 @@ export default function CorporateActionRecordsPage() {
   const handleUpdateDetailRow = (
     tempId: string,
     field: keyof NewDetailRow,
-    value: any
+    value: any,
   ) => {
     setNewAction({
       ...newAction,
       details: newAction.details.map((d) =>
-        d.tempId === tempId ? { ...d, [field]: value } : d
+        d.tempId === tempId ? { ...d, [field]: value } : d,
       ),
     });
   };
@@ -668,7 +675,7 @@ export default function CorporateActionRecordsPage() {
         if (!detail.targetStockId) {
           showToast(
             "Please select a target stock for all detail rows",
-            "error"
+            "error",
           );
           return;
         }
@@ -676,7 +683,7 @@ export default function CorporateActionRecordsPage() {
         if (!detail.ratioQuantityHeld || !detail.ratioQuantityEntitled) {
           showToast(
             "Please fill in ratio quantities for all detail rows",
-            "error"
+            "error",
           );
           return;
         }
@@ -729,7 +736,7 @@ export default function CorporateActionRecordsPage() {
     try {
       setIsDeleting(true);
       const response = await axiosInstance.delete(
-        `/corporate-action/records/${deletingRecord.Id}`
+        `/corporate-action/records/${deletingRecord.Id}`,
       );
 
       if (response.data.success) {
@@ -742,7 +749,8 @@ export default function CorporateActionRecordsPage() {
       }
     } catch (error: any) {
       console.error("Error deleting record:", error);
-      const errorMessage = error.response?.data?.message || "Error deleting record";
+      const errorMessage =
+        error.response?.data?.message || "Error deleting record";
       showToast(errorMessage, "error");
     } finally {
       setIsDeleting(false);
@@ -761,7 +769,7 @@ export default function CorporateActionRecordsPage() {
     try {
       setIsDeleting(true);
       const response = await axiosInstance.delete(
-        `/corporate-action/records/${selectedRecord.Id}/details/${deletingDetail.Id}`
+        `/corporate-action/records/${selectedRecord.Id}/details/${deletingDetail.Id}`,
       );
 
       if (response.data.success) {
@@ -774,7 +782,8 @@ export default function CorporateActionRecordsPage() {
       }
     } catch (error: any) {
       console.error("Error deleting detail:", error);
-      const errorMessage = error.response?.data?.message || "Error deleting detail";
+      const errorMessage =
+        error.response?.data?.message || "Error deleting detail";
       showToast(errorMessage, "error");
     } finally {
       setIsDeleting(false);
@@ -1149,7 +1158,7 @@ export default function CorporateActionRecordsPage() {
                                         onPress={() =>
                                           handleDownloadReferenceDoc(
                                             detail.ReferenceDocUrl!,
-                                            detail.Id
+                                            detail.Id,
                                           )
                                         }
                                       >
@@ -1224,6 +1233,7 @@ export default function CorporateActionRecordsPage() {
                       }
                     }}
                     initialStockName={initialStockName}
+                    investmentTypeIds={CA_INVESTMENT_TYPE_IDS}
                     isRequired
                   />
 
@@ -1377,6 +1387,7 @@ export default function CorporateActionRecordsPage() {
                       }
                     }}
                     initialStockName={initialTargetStockName}
+                    investmentTypeIds={CA_INVESTMENT_TYPE_IDS}
                     isRequired
                   />
 
@@ -1532,6 +1543,7 @@ export default function CorporateActionRecordsPage() {
                     }
                   }}
                   initialStockName={initialTargetStockName}
+                  investmentTypeIds={CA_INVESTMENT_TYPE_IDS}
                   isRequired
                 />
 
@@ -1669,6 +1681,7 @@ export default function CorporateActionRecordsPage() {
                       }
                     }}
                     initialStockName={initialStockName}
+                    investmentTypeIds={CA_INVESTMENT_TYPE_IDS}
                     isRequired
                   />
 
@@ -1799,7 +1812,7 @@ export default function CorporateActionRecordsPage() {
                                 handleUpdateDetailRow(
                                   detail.tempId,
                                   "targetStockId",
-                                  stockId
+                                  stockId,
                                 );
                                 setTargetStockNames({
                                   ...targetStockNames,
@@ -1809,7 +1822,7 @@ export default function CorporateActionRecordsPage() {
                                 handleUpdateDetailRow(
                                   detail.tempId,
                                   "targetStockId",
-                                  null
+                                  null,
                                 );
                                 const { [detail.tempId]: _, ...rest } =
                                   targetStockNames;
@@ -1819,6 +1832,7 @@ export default function CorporateActionRecordsPage() {
                             initialStockName={
                               targetStockNames[detail.tempId] || ""
                             }
+                            investmentTypeIds={CA_INVESTMENT_TYPE_IDS}
                             isRequired
                           />
 
@@ -1832,7 +1846,7 @@ export default function CorporateActionRecordsPage() {
                                 handleUpdateDetailRow(
                                   detail.tempId,
                                   "ratioQuantityHeld",
-                                  parseFloat(value) || 0
+                                  parseFloat(value) || 0,
                                 )
                               }
                               isRequired
@@ -1847,7 +1861,7 @@ export default function CorporateActionRecordsPage() {
                                 handleUpdateDetailRow(
                                   detail.tempId,
                                   "ratioQuantityEntitled",
-                                  parseFloat(value) || 0
+                                  parseFloat(value) || 0,
                                 )
                               }
                               isRequired
@@ -1864,7 +1878,7 @@ export default function CorporateActionRecordsPage() {
                                 handleUpdateDetailRow(
                                   detail.tempId,
                                   "ratioBookValueHeld",
-                                  value ? parseFloat(value) : null
+                                  value ? parseFloat(value) : null,
                                 )
                               }
                             />
@@ -1880,7 +1894,7 @@ export default function CorporateActionRecordsPage() {
                                 handleUpdateDetailRow(
                                   detail.tempId,
                                   "ratioBookValueEntitled",
-                                  value ? parseFloat(value) : null
+                                  value ? parseFloat(value) : null,
                                 )
                               }
                             />
@@ -1893,7 +1907,7 @@ export default function CorporateActionRecordsPage() {
                                 handleUpdateDetailRow(
                                   detail.tempId,
                                   "targetSaleRow",
-                                  value
+                                  value,
                                 )
                               }
                             >
@@ -1909,7 +1923,7 @@ export default function CorporateActionRecordsPage() {
                               handleUpdateDetailRow(
                                 detail.tempId,
                                 "remark",
-                                value || null
+                                value || null,
                               )
                             }
                           />
