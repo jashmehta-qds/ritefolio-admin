@@ -123,3 +123,37 @@ export function getFYEndEpochByYear(year: number): number {
   const fyEndDate = new Date(year + 1, 2, 31, 23, 59, 59, 999);
   return dateToEpoch(fyEndDate);
 }
+
+/**
+ * Sets the time component of an epoch date to 8:00 PM IST (20:00 IST = 14:30 UTC).
+ * Used for corporate action record dates — the date part (in IST) is preserved,
+ * only the time is overridden to evening 8 PM IST.
+ * @param epochSeconds - Unix timestamp in seconds
+ * @returns Epoch timestamp in seconds with time set to 8:00 PM IST
+ */
+export function setToEveningIST(epochSeconds: number): number {
+  const istOffsetMs = 5.5 * 60 * 60 * 1000; // IST = UTC+5:30
+  const istDate = new Date(epochSeconds * 1000 + istOffsetMs);
+  const year = istDate.getUTCFullYear();
+  const month = istDate.getUTCMonth();
+  const day = istDate.getUTCDate();
+  // 8:00 PM IST = 14:30 UTC
+  return Math.floor(Date.UTC(year, month, day, 14, 30, 0) / 1000);
+}
+
+/**
+ * Sets the time component of an epoch date to 8:00 AM IST (08:00 IST = 02:30 UTC).
+ * Used for corporate action allotment dates — the date part (in IST) is preserved,
+ * only the time is overridden to morning 8 AM IST.
+ * @param epochSeconds - Unix timestamp in seconds
+ * @returns Epoch timestamp in seconds with time set to 8:00 AM IST
+ */
+export function setToMorningIST(epochSeconds: number): number {
+  const istOffsetMs = 5.5 * 60 * 60 * 1000; // IST = UTC+5:30
+  const istDate = new Date(epochSeconds * 1000 + istOffsetMs);
+  const year = istDate.getUTCFullYear();
+  const month = istDate.getUTCMonth();
+  const day = istDate.getUTCDate();
+  // 8:00 AM IST = 02:30 UTC
+  return Math.floor(Date.UTC(year, month, day, 2, 30, 0) / 1000);
+}

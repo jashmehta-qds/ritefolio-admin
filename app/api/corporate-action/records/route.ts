@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callFunction, callProcedure } from "@/utils/db";
-import { getCurrentFYEndEpoch, getFYStartEpochByYear } from "@/utils/date";
+import {
+  getCurrentFYEndEpoch,
+  getFYStartEpochByYear,
+  setToEveningIST,
+  setToMorningIST,
+} from "@/utils/date";
 import { callBulkUpsertCorpActionLogs } from "@/utils/corporateAction";
 import { publishToQueue } from "@/utils/rabbitmq";
 
@@ -171,6 +176,12 @@ export async function POST(request: NextRequest) {
       remark: detail.remark ?? null,
     }));
 
+    // Apply time rules: record date → 8 PM IST, allotment date → 8 AM IST
+    const adjustedRecordDate = setToEveningIST(recordDate);
+    const adjustedAllotmentDate = allotmentDate
+      ? setToMorningIST(allotmentDate)
+      : null;
+
     // Call the AddCorporateAction procedure
     await callProcedure({
       procedureName: 'public."AddCorporateAction"',
@@ -180,8 +191,8 @@ export async function POST(request: NextRequest) {
         sourceStockId, // p_source_stock_id
         corpActionTypeId, // p_corporate_action_type_id
         exDate, // p_ex_date
-        recordDate, // p_record_date
-        allotmentDate ?? null, // p_allotment_date
+        adjustedRecordDate, // p_record_date
+        adjustedAllotmentDate, // p_allotment_date
         JSON.stringify(formattedDetails), // p_corporate_action_details
         true, // p_is_active
         remark ?? null, // p_remark
