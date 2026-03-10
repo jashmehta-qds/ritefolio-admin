@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callProcedure } from "@/utils/db";
 import { callBulkUpsertCorpActionLogs } from "@/utils/corporateAction";
+import { setToEveningIST, setToMorningIST } from "@/utils/date";
 
 interface UpdateRecordParams {
   sourceStockId: string;
@@ -37,6 +38,12 @@ export async function PUT(
       );
     }
 
+    // Apply time rules: record date → 8 PM IST, allotment date → 8 AM IST
+    const adjustedRecordDate = setToEveningIST(body.recordDate);
+    const adjustedAllotmentDate = body.allotmentDate
+      ? setToMorningIST(body.allotmentDate)
+      : null;
+
     // Call the UpdateCorpActRecord procedure
     await callProcedure({
       procedureName: 'public."UpdateCorpActRecord"',
@@ -46,8 +53,8 @@ export async function PUT(
         body.sourceStockId,
         body.corpActionTypeId,
         body.exDate,
-        body.recordDate,
-        body.allotmentDate,
+        adjustedRecordDate,
+        adjustedAllotmentDate,
         body.remark,
         body.isActive ?? true,
       ],

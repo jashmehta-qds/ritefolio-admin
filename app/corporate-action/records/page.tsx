@@ -194,6 +194,7 @@ export default function CorporateActionRecordsPage() {
 
   // Add states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addAllotmentDateValue, setAddAllotmentDateValue] = useState<string>("");
   const [newAction, setNewAction] = useState<NewCorporateAction>({
     sourceStockId: "",
     corpActionTypeId: 0,
@@ -388,7 +389,17 @@ export default function CorporateActionRecordsPage() {
 
   // Edit Record Handlers
   const handleEditRecord = async (record: CorporateActionRecord) => {
-    setEditingRecord({ ...record });
+    // If allotment date is not set, default it to record date + 1 day
+    const allotmentDate =
+      record.AllotmentDate ||
+      (record.RecordDate
+        ? (() => {
+            const next = new Date(record.RecordDate * 1000);
+            next.setUTCDate(next.getUTCDate() + 1);
+            return Math.floor(next.getTime() / 1000);
+          })()
+        : null);
+    setEditingRecord({ ...record, AllotmentDate: allotmentDate });
 
     // Fetch the stock details to get the stock name for the autocomplete
     try {
@@ -609,6 +620,7 @@ export default function CorporateActionRecordsPage() {
     });
     setInitialStockName("");
     setTargetStockNames({});
+    setAddAllotmentDateValue("");
     setIsAddModalOpen(true);
   };
 
@@ -1290,9 +1302,12 @@ export default function CorporateActionRecordsPage() {
                     }
                     onValueChange={(value) => {
                       const date = new Date(value);
+                      const nextDay = new Date(value);
+                      nextDay.setUTCDate(nextDay.getUTCDate() + 1);
                       setEditingRecord({
                         ...editingRecord,
                         RecordDate: dateToEpoch(date),
+                        AllotmentDate: dateToEpoch(nextDay),
                       });
                     }}
                     isRequired
@@ -1728,9 +1743,16 @@ export default function CorporateActionRecordsPage() {
                       type="date"
                       onValueChange={(value) => {
                         const date = new Date(value);
+                        const nextDay = new Date(value);
+                        nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+                        const nextDayStr = nextDay
+                          .toISOString()
+                          .split("T")[0];
+                        setAddAllotmentDateValue(nextDayStr);
                         setNewAction({
                           ...newAction,
                           recordDate: dateToEpoch(date),
+                          allotmentDate: dateToEpoch(nextDay),
                         });
                       }}
                       isRequired
@@ -1739,7 +1761,9 @@ export default function CorporateActionRecordsPage() {
                     <Input
                       label="Allotment Date"
                       type="date"
+                      value={addAllotmentDateValue}
                       onValueChange={(value) => {
+                        setAddAllotmentDateValue(value);
                         const date = value ? new Date(value) : null;
                         setNewAction({
                           ...newAction,
