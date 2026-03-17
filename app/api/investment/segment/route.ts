@@ -9,12 +9,17 @@ interface InvestmentSegment {
 }
 
 // GET: Fetch all investment segments using FetchInvestmentSegments function
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const searchParams = request.nextUrl.searchParams;
+    const isActiveParam = searchParams.get("isActive");
+    const isActive =
+      isActiveParam !== null ? isActiveParam === "true" : null;
+
     const segments = await callFunction<InvestmentSegment>({
       functionName: 'public."FetchInvestmentSegments"',
       dbName: process.env.PG_DEFAULT_DB,
-      params: [],
+      params: [null, isActive],
     });
 
     return NextResponse.json(

@@ -13,12 +13,17 @@ interface Country {
 }
 
 // GET: Fetch all countries using FetchCountries function
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const searchParams = request.nextUrl.searchParams;
+    const isActiveParam = searchParams.get("isActive");
+    const isActive =
+      isActiveParam !== null ? isActiveParam === "true" : null;
+
     const countries = await callFunction<Country>({
       functionName: 'public."FetchCountries"',
       dbName: process.env.PG_DEFAULT_DB,
-      params: [],
+      params: [null, null, null, isActive],
     });
 
     return NextResponse.json(
