@@ -4,60 +4,35 @@ import { queryDB } from "@/utils/db";
 interface TaxRate {
   Id: number;
   CountryId: number;
-  CountryName: string;
-  InvestmentId: number;
-  InvestmentSegmentName: string;
+  Country: string;
+  TaxAssetId: number;
+  TaxAsset: string;
   LegalStatusId: number;
-  LegalStatusName: string;
-  StgSttRate: number;
-  StgNonSttRate: number;
-  LtgSttRate: number;
-  LtgNonSttRate: number;
-  IncomeRate: number;
-  IsCorporate: boolean;
-  IsActive: boolean;
+  LegalStatus: string;
+  Period: number;
   StartDate: number;
   EndDate: number | null;
+  StcgRate: number;
+  LtcgRate: number;
+  IncomeRate: number;
+  LtcgExemption: number;
+  IndexationApplicable: boolean;
+  Note: string | null;
+  IsActive: boolean;
   CreatedOn: number;
+  UpdatedOn: number | null;
 }
 
-// GET: Fetch all tax rates with country, investment segment, and legal status details
+// GET: Fetch all tax rates using FetchTaxRates DB function
 export async function GET() {
   try {
     const taxRates = await queryDB<TaxRate>({
-      query: `
-        SELECT
-          tr."Id",
-          tr."CountryId",
-          c."Name" AS "CountryName",
-          tr."InvestmentId",
-          iseg."Category" AS "InvestmentSegmentName",
-          tr."LegalStatusId",
-          ls."Name" AS "LegalStatusName",
-          tr."StgSttRate",
-          tr."StgNonSttRate",
-          tr."LtgSttRate",
-          tr."LtgNonSttRate",
-          tr."IncomeRate",
-          tr."IsCorporate",
-          tr."IsActive",
-          tr."StartDate",
-          tr."EndDate",
-          tr."CreatedOn"
-        FROM public."TaxRates" tr
-        LEFT JOIN public."Country" c ON tr."CountryId" = c."Id"
-        LEFT JOIN public."InvestmentSegments" iseg ON tr."InvestmentId" = iseg."Id"
-        LEFT JOIN public."LegalStatus" ls ON tr."LegalStatusId" = ls."Id"
-        ORDER BY tr."Id" ASC
-      `,
+      query: `SELECT * FROM public."FetchTaxRates"()`,
       dbName: process.env.PG_DEFAULT_DB,
     });
 
     return NextResponse.json(
-      {
-        success: true,
-        data: taxRates,
-      },
+      { success: true, data: taxRates },
       { status: 200 }
     );
   } catch (error) {
@@ -79,37 +54,36 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       countryId,
-      investmentId,
+      taxAssetId,
       legalStatusId,
-      stgSttRate,
-      stgNonSttRate,
-      ltgSttRate,
-      ltgNonSttRate,
-      incomeRate,
-      isCorporate,
-      isActive = true,
+      period,
       startDate,
       endDate,
+      stcgRate,
+      ltcgRate,
+      incomeRate,
+      ltcgExemption = 0,
+      indexationApplicable = false,
+      note,
+      isActive = true,
     } = body;
 
     if (
       !countryId ||
-      !investmentId ||
+      !taxAssetId ||
       !legalStatusId ||
-      stgSttRate === undefined ||
-      stgNonSttRate === undefined ||
-      ltgSttRate === undefined ||
-      ltgNonSttRate === undefined ||
-      incomeRate === undefined ||
-      isCorporate === undefined ||
-      !startDate
+      !period ||
+      !startDate ||
+      stcgRate === undefined ||
+      ltcgRate === undefined ||
+      incomeRate === undefined
     ) {
       return NextResponse.json(
         {
           success: false,
           error: "Missing required fields",
           message:
-            "CountryId, InvestmentId, LegalStatusId, all rate fields, IsCorporate, and StartDate are required",
+            "CountryId, TaxAssetId, LegalStatusId, Period, StartDate, StcgRate, LtcgRate, and IncomeRate are required",
         },
         { status: 400 }
       );
@@ -118,32 +92,30 @@ export async function POST(request: NextRequest) {
     await queryDB({
       query: `
         INSERT INTO public."TaxRates"
-          ("CountryId", "InvestmentId", "LegalStatusId", "StgSttRate", "StgNonSttRate",
-           "LtgSttRate", "LtgNonSttRate", "IncomeRate", "IsCorporate", "IsActive", "StartDate", "EndDate")
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          ("CountryId", "TaxAssetId", "LegalStatusId", "Period", "StartDate", "EndDate",
+           "StcgRate", "LtcgRate", "IncomeRate", "LtcgExemption", "IndexationApplicable", "Note", "IsActive")
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       `,
       dbName: process.env.PG_DEFAULT_DB,
       params: [
         countryId,
-        investmentId,
+        taxAssetId,
         legalStatusId,
-        stgSttRate,
-        stgNonSttRate,
-        ltgSttRate,
-        ltgNonSttRate,
-        incomeRate,
-        isCorporate,
-        isActive,
+        period,
         startDate,
         endDate ?? null,
+        stcgRate,
+        ltcgRate,
+        incomeRate,
+        ltcgExemption,
+        indexationApplicable,
+        note ?? null,
+        isActive,
       ],
     });
 
     return NextResponse.json(
-      {
-        success: true,
-        message: "Tax rate created successfully",
-      },
+      { success: true, message: "Tax rate created successfully" },
       { status: 201 }
     );
   } catch (error) {

@@ -3,15 +3,14 @@ import { queryDB } from "@/utils/db";
 
 interface LegalStatus {
   Id: number;
-  Name: string;
-  IsActive: boolean;
+  Classification: string;
 }
 
 // GET: Fetch all legal statuses
 export async function GET() {
   try {
     const legalStatuses = await queryDB<LegalStatus>({
-      query: `SELECT "Id", "Name", "IsActive" FROM public."LegalStatus" ORDER BY "Id" ASC`,
+      query: `SELECT "Id", "Classification" FROM public."LegalStatus" ORDER BY "Id" ASC`,
       dbName: process.env.PG_DEFAULT_DB,
     });
 
@@ -20,7 +19,7 @@ export async function GET() {
         success: true,
         data: legalStatuses,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("Error fetching legal statuses:", error);
@@ -30,7 +29,7 @@ export async function GET() {
         error: "Failed to fetch legal statuses",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

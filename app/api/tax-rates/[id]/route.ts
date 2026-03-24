@@ -11,37 +11,36 @@ export async function PUT(
     const body = await request.json();
     const {
       countryId,
-      investmentId,
+      taxAssetId,
       legalStatusId,
-      stgSttRate,
-      stgNonSttRate,
-      ltgSttRate,
-      ltgNonSttRate,
-      incomeRate,
-      isCorporate,
-      isActive,
+      period,
       startDate,
       endDate,
+      stcgRate,
+      ltcgRate,
+      incomeRate,
+      ltcgExemption = 0,
+      indexationApplicable = false,
+      note,
+      isActive,
     } = body;
 
     if (
       !countryId ||
-      !investmentId ||
+      !taxAssetId ||
       !legalStatusId ||
-      stgSttRate === undefined ||
-      stgNonSttRate === undefined ||
-      ltgSttRate === undefined ||
-      ltgNonSttRate === undefined ||
-      incomeRate === undefined ||
-      isCorporate === undefined ||
-      !startDate
+      !period ||
+      !startDate ||
+      stcgRate === undefined ||
+      ltcgRate === undefined ||
+      incomeRate === undefined
     ) {
       return NextResponse.json(
         {
           success: false,
           error: "Missing required fields",
           message:
-            "CountryId, InvestmentId, LegalStatusId, all rate fields, IsCorporate, and StartDate are required",
+            "CountryId, TaxAssetId, LegalStatusId, Period, StartDate, StcgRate, LtcgRate, and IncomeRate are required",
         },
         { status: 400 }
       );
@@ -52,42 +51,42 @@ export async function PUT(
         UPDATE public."TaxRates"
         SET
           "CountryId" = $1,
-          "InvestmentId" = $2,
+          "TaxAssetId" = $2,
           "LegalStatusId" = $3,
-          "StgSttRate" = $4,
-          "StgNonSttRate" = $5,
-          "LtgSttRate" = $6,
-          "LtgNonSttRate" = $7,
-          "IncomeRate" = $8,
-          "IsCorporate" = $9,
-          "IsActive" = $10,
-          "StartDate" = $11,
-          "EndDate" = $12
-        WHERE "Id" = $13
+          "Period" = $4,
+          "StartDate" = $5,
+          "EndDate" = $6,
+          "StcgRate" = $7,
+          "LtcgRate" = $8,
+          "IncomeRate" = $9,
+          "LtcgExemption" = $10,
+          "IndexationApplicable" = $11,
+          "Note" = $12,
+          "IsActive" = $13,
+          "UpdatedOn" = EXTRACT(epoch FROM now())::INTEGER
+        WHERE "Id" = $14
       `,
       dbName: process.env.PG_DEFAULT_DB,
       params: [
         countryId,
-        investmentId,
+        taxAssetId,
         legalStatusId,
-        stgSttRate,
-        stgNonSttRate,
-        ltgSttRate,
-        ltgNonSttRate,
-        incomeRate,
-        isCorporate,
-        isActive,
+        period,
         startDate,
         endDate ?? null,
+        stcgRate,
+        ltcgRate,
+        incomeRate,
+        ltcgExemption,
+        indexationApplicable,
+        note ?? null,
+        isActive,
         id,
       ],
     });
 
     return NextResponse.json(
-      {
-        success: true,
-        message: "Tax rate updated successfully",
-      },
+      { success: true, message: "Tax rate updated successfully" },
       { status: 200 }
     );
   } catch (error) {
@@ -118,10 +117,7 @@ export async function DELETE(
     });
 
     return NextResponse.json(
-      {
-        success: true,
-        message: "Tax rate deleted successfully",
-      },
+      { success: true, message: "Tax rate deleted successfully" },
       { status: 200 }
     );
   } catch (error) {
