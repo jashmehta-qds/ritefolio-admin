@@ -1,0 +1,739 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableColumn,
+  TableRow,
+  TableCell,
+} from "@heroui/table";
+import { Button } from "@heroui/button";
+import { Chip } from "@heroui/chip";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@heroui/modal";
+import { Input } from "@heroui/input";
+import { Switch } from "@heroui/switch";
+import { Autocomplete, AutocompleteItem } from "@heroui/autocomplete";
+import { FiPlus, FiEdit2, FiTrash2 } from "react-icons/fi";
+import { createClient } from "@/lib/supabase/client";
+import { useFormik } from "formik";
+import * as Yup from "yup";
+import axiosInstance from "@/lib/axios";
+import { formatEpochDate } from "@/utils/date";
+import { CountryAutocomplete } from "@/components/CountryAutocomplete";
+
+interface TaxRate {
+  Id: number;
+  CountryId: number;
+  Country: string;
+  TaxAssetId: number;
+  TaxAsset: string;
+  LegalStatusId: number;
+  LegalStatus: string;
+  Period: number;
+  StartDate: number;
+  EndDate: number | null;
+  StcgRate: number;
+  LtcgRate: number;
+  IncomeRate: number;
+  LtcgExemption: number;
+  IndexationApplicable: boolean;
+  Note: string | null;
+  IsActive: boolean;
+  CreatedOn: number;
+  UpdatedOn: number | null;
+}
+
+interface TaxAssetClass {
+  Id: number;
+  Name: string;
+}
+
+interface LegalStatus {
+  Id: number;
+  Classification: string;
+}
+
+interface TaxRateFormData {
+  countryId: string;
+  taxAssetId: string;
+  legalStatusId: string;
+  period: string;
+  startDate: string;
+  endDate: string;
+  stcgRate: string;
+  ltcgRate: string;
+  incomeRate: string;
+  ltcgExemption: string;
+  indexationApplicable: boolean;
+  note: string;
+  isActive: boolean;
+}
+
+const taxRateValidationSchema = Yup.object({
+  countryId: Yup.string().required("Country is required"),
+  taxAssetId: Yup.string().required("Tax asset is required"),
+  legalStatusId: Yup.string().required("Legal status is required"),
+  period: Yup.number()
+    .typeError("Must be a number")
+    .required("Period is required")
+    .integer("Must be a whole number")
+    .positive("Must be positive"),
+  startDate: Yup.string().required("Start date is required"),
+  endDate: Yup.string(),
+  stcgRate: Yup.number()
+    .typeError("Must be a number")
+    .required("STCG Rate is required")
+    .min(0, "Must be 0 or greater")
+    .max(999.99, "Must not exceed 999.99"),
+  ltcgRate: Yup.number()
+    .typeError("Must be a number")
+    .required("LTCG Rate is required")
+    .min(0, "Must be 0 or greater")
+    .max(999.99, "Must not exceed 999.99"),
+  incomeRate: Yup.number()
+    .typeError("Must be a number")
+    .required("Income Rate is required")
+    .min(0, "Must be 0 or greater")
+    .max(999.99, "Must not exceed 999.99"),
+  ltcgExemption: Yup.number()
+    .typeError("Must be a number")
+    .min(0, "Must be 0 or greater"),
+  indexationApplicable: Yup.boolean(),
+  note: Yup.string(),
+  isActive: Yup.boolean(),
+});
+
+const dateStringToEpoch = (dateStr: string): number => {
+  return Math.floor(new Date(dateStr).getTime() / 1000);
+};
+
+const epochToDateString = (epoch: number): string => {
+  const date = new Date(epoch * 1000);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+export default function TaxRatesPage() {
+  const [taxRates, setTaxRates] = useState<TaxRate[]>([]);
+  const [taxAssets, setTaxAssets] = useState<TaxAssetClass[]>([]);
+  const [legalStatuses, setLegalStatuses] = useState<LegalStatus[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedTaxRate, setSelectedTaxRate] = useState<TaxRate | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const router = useRouter();
+  const supabase = createClient();
+
+  const formik = useFormik<TaxRateFormData>({
+    initialValues: {
+      countryId: "",
+      taxAssetId: "",
+      legalStatusId: "",
+      period: "",
+      startDate: "",
+      endDate: "",
+      stcgRate: "",
+      ltcgRate: "",
+      incomeRate: "",
+      ltcgExemption: "0",
+      indexationApplicable: false,
+      note: "",
+      isActive: true,
+    },
+    validationSchema: taxRateValidationSchema,
+    onSubmit: async (values) => {
+      try {
+        const payload = {
+          countryId: parseInt(values.countryId),
+          taxAssetId: parseInt(values.taxAssetId),
+          legalStatusId: parseInt(values.legalStatusId),
+          period: parseInt(values.period),
+          startDate: dateStringToEpoch(values.startDate),
+          endDate: values.endDate ? dateStringToEpoch(values.endDate) : null,
+          stcgRate: parseFloat(values.stcgRate),
+          ltcgRate: parseFloat(values.ltcgRate),
+          incomeRate: parseFloat(values.incomeRate),
+          ltcgExemption: parseFloat(values.ltcgExemption) || 0,
+          indexationApplicable: values.indexationApplicable,
+          note: values.note || null,
+          isActive: values.isActive,
+        };
+
+        const response = selectedTaxRate
+          ? await axiosInstance.put(`/tax-rates/${selectedTaxRate.Id}`, payload)
+          : await axiosInstance.post("/tax-rates", payload);
+
+        const result = response.data;
+
+        if (result.success) {
+          handleCloseModal();
+          fetchTaxRates();
+        } else {
+          console.error("Failed to save tax rate:", result.error);
+          alert(`Error: ${result.message || result.error}`);
+        }
+      } catch (error) {
+        console.error("Error saving tax rate:", error);
+        alert("Failed to save tax rate");
+      }
+    },
+  });
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/");
+        return;
+      }
+
+      fetchTaxRates();
+    };
+
+    checkAuth();
+  }, [router, supabase.auth]);
+
+  const fetchTaxRates = async () => {
+    try {
+      setIsLoading(true);
+      const response = await axiosInstance.get("/tax-rates");
+      const result = response.data;
+
+      if (result.success) {
+        setTaxRates(result.data);
+      } else {
+        console.error("Failed to fetch tax rates:", result.error);
+      }
+    } catch (error) {
+      console.error("Error fetching tax rates:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchTaxAssets = async () => {
+    try {
+      const response = await axiosInstance.get("/tax-asset-class");
+      const result = response.data;
+      if (result.success) {
+        setTaxAssets(result.data);
+      }
+    } catch (error) {
+      console.error("Error fetching tax asset classes:", error);
+    }
+  };
+
+  const fetchLegalStatuses = async () => {
+    try {
+      const response = await axiosInstance.get("/legal-status");
+      const result = response.data;
+      if (result.success) {
+        setLegalStatuses(result.data);
+      }
+    } catch (error) {
+      console.error("Error fetching legal statuses:", error);
+    }
+  };
+
+  const handleOpenModal = (taxRate?: TaxRate) => {
+    fetchTaxAssets();
+    fetchLegalStatuses();
+    if (taxRate) {
+      setSelectedTaxRate(taxRate);
+      formik.setValues({
+        countryId: String(taxRate.CountryId),
+        taxAssetId: String(taxRate.TaxAssetId),
+        legalStatusId: String(taxRate.LegalStatusId),
+        period: String(taxRate.Period),
+        startDate: epochToDateString(taxRate.StartDate),
+        endDate: taxRate.EndDate ? epochToDateString(taxRate.EndDate) : "",
+        stcgRate: String(taxRate.StcgRate),
+        ltcgRate: String(taxRate.LtcgRate),
+        incomeRate: String(taxRate.IncomeRate),
+        ltcgExemption: String(taxRate.LtcgExemption),
+        indexationApplicable: taxRate.IndexationApplicable,
+        note: taxRate.Note ?? "",
+        isActive: taxRate.IsActive,
+      });
+    } else {
+      setSelectedTaxRate(null);
+      formik.resetForm();
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedTaxRate(null);
+    formik.resetForm();
+  };
+
+  const handleDelete = async () => {
+    if (!selectedTaxRate) return;
+
+    try {
+      setIsDeleting(true);
+      const response = await axiosInstance.delete(
+        `/tax-rates/${selectedTaxRate.Id}`,
+      );
+      const result = response.data;
+
+      if (result.success) {
+        setIsDeleteModalOpen(false);
+        setSelectedTaxRate(null);
+        fetchTaxRates();
+      } else {
+        console.error("Failed to delete tax rate:", result.error);
+        alert(`Error: ${result.message || result.error}`);
+      }
+    } catch (error) {
+      console.error("Error deleting tax rate:", error);
+      alert("Failed to delete tax rate");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const openDeleteModal = (taxRate: TaxRate) => {
+    setSelectedTaxRate(taxRate);
+    setIsDeleteModalOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    setIsDeleteModalOpen(false);
+    setSelectedTaxRate(null);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+          <p className="mt-4 text-default-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6">
+      <div className="mx-auto max-w-7xl">
+        {/* Header */}
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-foreground">Tax Rates</h1>
+            <p className="mt-2 text-default-500">Manage tax rate master data</p>
+          </div>
+          <Button
+            color="primary"
+            startContent={<FiPlus className="text-lg" />}
+            onPress={() => handleOpenModal()}
+          >
+            Add Tax Rate
+          </Button>
+        </div>
+
+        {/* Tax Rates Table */}
+        <Table
+          aria-label="Tax rates table"
+          className="max-h-[70vh] overflow-auto"
+          isHeaderSticky
+        >
+          <TableHeader>
+            <TableColumn>ID</TableColumn>
+            <TableColumn>COUNTRY</TableColumn>
+            <TableColumn>TAX ASSET</TableColumn>
+            <TableColumn>LEGAL STATUS</TableColumn>
+            <TableColumn>PERIOD</TableColumn>
+            <TableColumn>START DATE</TableColumn>
+            <TableColumn>END DATE</TableColumn>
+            <TableColumn>STCG %</TableColumn>
+            <TableColumn>LTCG %</TableColumn>
+            <TableColumn>INCOME %</TableColumn>
+            <TableColumn>LTCG EXEMPTION</TableColumn>
+            <TableColumn>INDEXATION</TableColumn>
+            <TableColumn>STATUS</TableColumn>
+            <TableColumn>ACTIONS</TableColumn>
+          </TableHeader>
+          <TableBody>
+            {taxRates.map((taxRate) => (
+              <TableRow key={taxRate.Id}>
+                <TableCell>{taxRate.Id}</TableCell>
+                <TableCell>{taxRate.Country || "-"}</TableCell>
+                <TableCell>{taxRate.TaxAsset || "-"}</TableCell>
+                <TableCell>{taxRate.LegalStatus || "-"}</TableCell>
+                <TableCell>{taxRate.Period}</TableCell>
+                <TableCell>{formatEpochDate(taxRate.StartDate)}</TableCell>
+                <TableCell>
+                  {taxRate.EndDate ? formatEpochDate(taxRate.EndDate) : "-"}
+                </TableCell>
+                <TableCell>{taxRate.StcgRate}%</TableCell>
+                <TableCell>{taxRate.LtcgRate}%</TableCell>
+                <TableCell>{taxRate.IncomeRate}%</TableCell>
+                <TableCell>{taxRate.LtcgExemption}</TableCell>
+                <TableCell>
+                  <Chip
+                    color={
+                      taxRate.IndexationApplicable ? "secondary" : "default"
+                    }
+                    size="sm"
+                    variant="flat"
+                  >
+                    {taxRate.IndexationApplicable ? "Yes" : "No"}
+                  </Chip>
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    color={taxRate.IsActive ? "success" : "default"}
+                    size="sm"
+                    variant="flat"
+                  >
+                    {taxRate.IsActive ? "Active" : "Inactive"}
+                  </Chip>
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="light"
+                      color="primary"
+                      isIconOnly
+                      onPress={() => handleOpenModal(taxRate)}
+                    >
+                      <FiEdit2 />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="light"
+                      color="danger"
+                      isIconOnly
+                      onPress={() => openDeleteModal(taxRate)}
+                    >
+                      <FiTrash2 />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+
+        {/* Add/Edit Modal */}
+        <Modal isOpen={isModalOpen} onClose={handleCloseModal} size="3xl">
+          <ModalContent>
+            <form onSubmit={formik.handleSubmit}>
+              <ModalHeader>
+                {selectedTaxRate ? "Edit Tax Rate" : "Add Tax Rate"}
+              </ModalHeader>
+              <ModalBody>
+                <div className="space-y-4">
+                  {/* Country, Tax Asset, Legal Status */}
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <CountryAutocomplete
+                      name="countryId"
+                      label="Country"
+                      value={
+                        formik.values.countryId
+                          ? parseInt(formik.values.countryId)
+                          : undefined
+                      }
+                      onSelectionChange={(value) =>
+                        formik.setFieldValue(
+                          "countryId",
+                          value !== null ? String(value) : "",
+                        )
+                      }
+                      variant="flat"
+                      isRequired
+                      isInvalid={
+                        formik.touched.countryId && !!formik.errors.countryId
+                      }
+                      errorMessage={
+                        formik.touched.countryId
+                          ? formik.errors.countryId
+                          : undefined
+                      }
+                    />
+
+                    <Autocomplete
+                      label="Tax Asset"
+                      placeholder="Select tax asset"
+                      selectedKey={formik.values.taxAssetId || null}
+                      onSelectionChange={(key) =>
+                        formik.setFieldValue(
+                          "taxAssetId",
+                          key ? String(key) : "",
+                        )
+                      }
+                      isInvalid={
+                        formik.touched.taxAssetId && !!formik.errors.taxAssetId
+                      }
+                      errorMessage={
+                        formik.touched.taxAssetId && formik.errors.taxAssetId
+                      }
+                      isRequired
+                      defaultItems={taxAssets}
+                    >
+                      {(asset) => (
+                        <AutocompleteItem key={String(asset.Id)} textValue={asset.Name}>
+                          {asset.Name}
+                        </AutocompleteItem>
+                      )}
+                    </Autocomplete>
+
+                    <Autocomplete
+                      label="Legal Status"
+                      placeholder="Select legal status"
+                      selectedKey={formik.values.legalStatusId || null}
+                      onSelectionChange={(key) =>
+                        formik.setFieldValue(
+                          "legalStatusId",
+                          key ? String(key) : "",
+                        )
+                      }
+                      isInvalid={
+                        formik.touched.legalStatusId &&
+                        !!formik.errors.legalStatusId
+                      }
+                      errorMessage={
+                        formik.touched.legalStatusId &&
+                        formik.errors.legalStatusId
+                      }
+                      isRequired
+                      defaultItems={legalStatuses}
+                    >
+                      {(ls) => (
+                        <AutocompleteItem key={String(ls.Id)} textValue={ls.Classification}>
+                          {ls.Classification}
+                        </AutocompleteItem>
+                      )}
+                    </Autocomplete>
+                  </div>
+
+                  {/* Period and Dates */}
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <Input
+                      label="Period"
+                      placeholder="e.g. 2024"
+                      type="number"
+                      name="period"
+                      value={formik.values.period}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      isInvalid={
+                        formik.touched.period && !!formik.errors.period
+                      }
+                      errorMessage={
+                        formik.touched.period && formik.errors.period
+                      }
+                      isRequired
+                    />
+                    <Input
+                      label="Start Date"
+                      type="date"
+                      name="startDate"
+                      value={formik.values.startDate}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      isInvalid={
+                        formik.touched.startDate && !!formik.errors.startDate
+                      }
+                      errorMessage={
+                        formik.touched.startDate && formik.errors.startDate
+                      }
+                      isRequired
+                    />
+                    <Input
+                      label="End Date"
+                      type="date"
+                      name="endDate"
+                      value={formik.values.endDate}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      isInvalid={
+                        formik.touched.endDate && !!formik.errors.endDate
+                      }
+                      errorMessage={
+                        formik.touched.endDate && formik.errors.endDate
+                      }
+                    />
+                  </div>
+
+                  {/* Tax Rates */}
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <Input
+                      label="STCG Rate (%)"
+                      placeholder="e.g. 15.00"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="999.99"
+                      name="stcgRate"
+                      value={formik.values.stcgRate}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      isInvalid={
+                        formik.touched.stcgRate && !!formik.errors.stcgRate
+                      }
+                      errorMessage={
+                        formik.touched.stcgRate && formik.errors.stcgRate
+                      }
+                      isRequired
+                    />
+                    <Input
+                      label="LTCG Rate (%)"
+                      placeholder="e.g. 10.00"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="999.99"
+                      name="ltcgRate"
+                      value={formik.values.ltcgRate}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      isInvalid={
+                        formik.touched.ltcgRate && !!formik.errors.ltcgRate
+                      }
+                      errorMessage={
+                        formik.touched.ltcgRate && formik.errors.ltcgRate
+                      }
+                      isRequired
+                    />
+                    <Input
+                      label="Income Rate (%)"
+                      placeholder="e.g. 30.00"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="999.99"
+                      name="incomeRate"
+                      value={formik.values.incomeRate}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      isInvalid={
+                        formik.touched.incomeRate && !!formik.errors.incomeRate
+                      }
+                      errorMessage={
+                        formik.touched.incomeRate && formik.errors.incomeRate
+                      }
+                      isRequired
+                    />
+                  </div>
+
+                  {/* LTCG Exemption and Note */}
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Input
+                      label="LTCG Exemption"
+                      placeholder="e.g. 100000"
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      name="ltcgExemption"
+                      value={formik.values.ltcgExemption}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      isInvalid={
+                        formik.touched.ltcgExemption &&
+                        !!formik.errors.ltcgExemption
+                      }
+                      errorMessage={
+                        formik.touched.ltcgExemption &&
+                        formik.errors.ltcgExemption
+                      }
+                    />
+                    <Input
+                      label="Note"
+                      placeholder="Optional note"
+                      name="note"
+                      value={formik.values.note}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                    />
+                  </div>
+
+                  {/* Toggles */}
+                  <div className="flex gap-8">
+                    <Switch
+                      name="indexationApplicable"
+                      isSelected={formik.values.indexationApplicable}
+                      onValueChange={(value) =>
+                        formik.setFieldValue("indexationApplicable", value)
+                      }
+                    >
+                      Indexation Applicable
+                    </Switch>
+                    <Switch
+                      name="isActive"
+                      isSelected={formik.values.isActive}
+                      onValueChange={(value) =>
+                        formik.setFieldValue("isActive", value)
+                      }
+                    >
+                      Active
+                    </Switch>
+                  </div>
+                </div>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={handleCloseModal}>
+                  Cancel
+                </Button>
+                <Button
+                  color="primary"
+                  type="submit"
+                  isLoading={formik.isSubmitting}
+                >
+                  {selectedTaxRate ? "Update" : "Create"}
+                </Button>
+              </ModalFooter>
+            </form>
+          </ModalContent>
+        </Modal>
+
+        {/* Delete Confirmation Modal */}
+        <Modal isOpen={isDeleteModalOpen} onClose={closeDeleteModal}>
+          <ModalContent>
+            <ModalHeader>Confirm Delete</ModalHeader>
+            <ModalBody>
+              <p>
+                Are you sure you want to delete tax rate{" "}
+                <strong>#{selectedTaxRate?.Id}</strong>
+                {selectedTaxRate?.Country
+                  ? ` for ${selectedTaxRate.Country}`
+                  : ""}
+                ?
+              </p>
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="light" onPress={closeDeleteModal}>
+                Cancel
+              </Button>
+              <Button
+                color="danger"
+                onPress={handleDelete}
+                isLoading={isDeleting}
+              >
+                Delete
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+      </div>
+    </div>
+  );
+}

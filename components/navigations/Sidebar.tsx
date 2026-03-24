@@ -5,14 +5,13 @@ import { usePathname, useRouter } from "next/navigation";
 import NextLink from "next/link";
 import { Accordion, AccordionItem } from "@heroui/accordion";
 import { Button } from "@heroui/button";
+import { Tooltip } from "@heroui/tooltip";
 import { createClient } from "@/lib/supabase/client";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 import {
   FiHome,
-  FiSettings,
   FiFileText,
   FiFolder,
-  FiShield,
   FiTool,
   FiChevronDown,
   FiDollarSign,
@@ -22,6 +21,7 @@ import {
   FiBriefcase,
   FiActivity,
   FiTrendingUp,
+  FiPercent,
 } from "react-icons/fi";
 import { LiaExchangeAltSolid } from "react-icons/lia";
 
@@ -118,10 +118,15 @@ const navigationConfig: NavigationConfig = [
       },
     ],
   },
+  {
+    label: "Tax Rates",
+    href: "/tax-rates",
+    icon: <FiPercent className="text-xl" />,
+  },
 ];
 
 function isNavigationGroup(
-  item: NavigationItem | NavigationGroup
+  item: NavigationItem | NavigationGroup,
 ): item is NavigationGroup {
   return "items" in item;
 }
@@ -340,30 +345,35 @@ export const Sidebar = ({ isOpen = true, onClose }: SidebarProps) => {
         </nav>
 
         {/* Sidebar Footer - Fixed at bottom */}
-        <div className="flex-shrink-0 px-4 py-4 border-t border-default-200 bg-background space-y-3">
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-default-100">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold">
-              {userInitials}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground truncate">
-                {userName || "Admin"}
-              </p>
-              <p className="text-xs text-default-500 truncate">{userEmail}</p>
-            </div>
-          </div>
+        <div className="flex-shrink-0 px-4 py-3 border-t border-default-200 bg-background">
           <div className="flex items-center gap-2">
-            <Button
-              color="danger"
-              variant="flat"
-              size="sm"
-              className="flex-1"
-              onPress={handleLogout}
-              startContent={<FiLogOut />}
-            >
-              Logout
-            </Button>
+            {/* Avatar + user info */}
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                {userInitials}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-foreground truncate leading-tight">
+                  {userName || "Admin"}
+                </p>
+                <p className="text-[10px] text-default-400 truncate leading-tight">
+                  {userEmail}
+                </p>
+              </div>
+            </div>
+            {/* Actions */}
             <ThemeSwitch />
+            <Tooltip content="Logout" color="danger" size="sm">
+              <Button
+                isIconOnly
+                color="danger"
+                variant="flat"
+                size="sm"
+                onPress={handleLogout}
+              >
+                <FiLogOut />
+              </Button>
+            </Tooltip>
           </div>
         </div>
       </div>
