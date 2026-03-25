@@ -450,8 +450,14 @@ export default function ListedStocksPage() {
         </div>
 
         {/* Stocks Table */}
-        <div className="max-h-[calc(100vh-340px)] overflow-auto">
-          <Table aria-label="Listed stocks table" isHeaderSticky>
+        <Table aria-label="Listed stocks table" isHeaderSticky
+          className="glass-card rounded-xl shadow-lg overflow-hidden"
+          classNames={{
+            wrapper: "max-h-[calc(100vh-250px)] p-0",
+            base: "p-0",
+            th: "text-xs sm:text-sm",
+            td: "text-xs sm:text-sm py-2",
+          }}>
             <TableHeader>
               <TableColumn>SYMBOL</TableColumn>
               <TableColumn>NAME</TableColumn>
@@ -527,8 +533,7 @@ export default function ListedStocksPage() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
-        </div>
+        </Table>
 
         {/* Pagination */}
         {stocks.length > 0 && (
