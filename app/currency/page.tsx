@@ -11,6 +11,7 @@ import {
   TableCell,
 } from "@heroui/table";
 import { Button } from "@heroui/button";
+import { Tooltip } from "@heroui/tooltip";
 import { Chip } from "@heroui/chip";
 import {
   Modal,
@@ -230,8 +231,14 @@ export default function CurrencyPage() {
         {/* Currency Table */}
         <Table
           aria-label="Currency table"
-          className="max-h-[70vh] overflow-auto"
           isHeaderSticky
+          className="glass-card rounded-xl shadow-lg overflow-hidden"
+          classNames={{
+            wrapper: "max-h-[calc(100vh-250px)] p-0",
+            base: "p-0",
+            th: "text-xs sm:text-sm",
+            td: "text-xs sm:text-sm py-2",
+          }}
         >
           <TableHeader>
             <TableColumn>ID</TableColumn>
@@ -259,24 +266,29 @@ export default function CurrencyPage() {
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="light"
-                      color="primary"
-                      isIconOnly
-                      onPress={() => handleOpenModal(currency)}
-                    >
-                      <FiEdit2 />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="light"
-                      color="danger"
-                      isIconOnly
-                      onPress={() => openDeleteModal(currency)}
-                    >
-                      <FiTrash2 />
-                    </Button>
+                    <Tooltip content="Edit">
+                      <Button
+                        size="sm"
+                        variant="light"
+                        isIconOnly
+                        onPress={() => handleOpenModal(currency)}
+                        aria-label="Edit"
+                      >
+                        <FiEdit2 className="text-lg" />
+                      </Button>
+                    </Tooltip>
+                    <Tooltip content="Delete">
+                      <Button
+                        size="sm"
+                        variant="light"
+                        color="danger"
+                        isIconOnly
+                        onPress={() => openDeleteModal(currency)}
+                        aria-label="Delete"
+                      >
+                        <FiTrash2 className="text-lg" />
+                      </Button>
+                    </Tooltip>
                   </div>
                 </TableCell>
               </TableRow>

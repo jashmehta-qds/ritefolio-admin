@@ -11,6 +11,7 @@ import {
   TableCell,
 } from "@heroui/table";
 import { Button } from "@heroui/button";
+import { Tooltip } from "@heroui/tooltip";
 import { Chip } from "@heroui/chip";
 import {
   Modal,
@@ -351,8 +352,14 @@ export default function TaxRatesPage() {
         {/* Tax Rates Table */}
         <Table
           aria-label="Tax rates table"
-          className="max-h-[70vh] overflow-auto"
           isHeaderSticky
+          className="glass-card rounded-xl shadow-lg overflow-hidden"
+          classNames={{
+            wrapper: "max-h-[calc(100vh-250px)] p-0",
+            base: "p-0",
+            th: "text-xs sm:text-sm",
+            td: "text-xs sm:text-sm py-2",
+          }}
         >
           <TableHeader>
             <TableColumn>ID</TableColumn>
@@ -408,24 +415,29 @@ export default function TaxRatesPage() {
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="light"
-                      color="primary"
-                      isIconOnly
-                      onPress={() => handleOpenModal(taxRate)}
-                    >
-                      <FiEdit2 />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="light"
-                      color="danger"
-                      isIconOnly
-                      onPress={() => openDeleteModal(taxRate)}
-                    >
-                      <FiTrash2 />
-                    </Button>
+                    <Tooltip content="Edit">
+                      <Button
+                        size="sm"
+                        variant="light"
+                        isIconOnly
+                        onPress={() => handleOpenModal(taxRate)}
+                        aria-label="Edit"
+                      >
+                        <FiEdit2 className="text-lg" />
+                      </Button>
+                    </Tooltip>
+                    <Tooltip content="Delete">
+                      <Button
+                        size="sm"
+                        variant="light"
+                        color="danger"
+                        isIconOnly
+                        onPress={() => openDeleteModal(taxRate)}
+                        aria-label="Delete"
+                      >
+                        <FiTrash2 className="text-lg" />
+                      </Button>
+                    </Tooltip>
                   </div>
                 </TableCell>
               </TableRow>
@@ -490,7 +502,10 @@ export default function TaxRatesPage() {
                       defaultItems={taxAssets}
                     >
                       {(asset) => (
-                        <AutocompleteItem key={String(asset.Id)} textValue={asset.Name}>
+                        <AutocompleteItem
+                          key={String(asset.Id)}
+                          textValue={asset.Name}
+                        >
                           {asset.Name}
                         </AutocompleteItem>
                       )}
@@ -518,7 +533,10 @@ export default function TaxRatesPage() {
                       defaultItems={legalStatuses}
                     >
                       {(ls) => (
-                        <AutocompleteItem key={String(ls.Id)} textValue={ls.Classification}>
+                        <AutocompleteItem
+                          key={String(ls.Id)}
+                          textValue={ls.Classification}
+                        >
                           {ls.Classification}
                         </AutocompleteItem>
                       )}

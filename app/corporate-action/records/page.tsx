@@ -886,8 +886,14 @@ export default function CorporateActionRecordsPage() {
         </div>
 
         {/* Records Table */}
-        <div className="max-h-[calc(100vh-400px)] overflow-auto">
-          <Table aria-label="Corporate action records table" isHeaderSticky>
+        <Table aria-label="Corporate action records table" isHeaderSticky
+          className="glass-card rounded-xl shadow-lg overflow-hidden"
+          classNames={{
+            wrapper: "max-h-[calc(100vh-250px)] p-0",
+            base: "p-0",
+            th: "text-xs sm:text-sm",
+            td: "text-xs sm:text-sm py-2",
+          }}>
             <TableHeader>
               <TableColumn>ISIN</TableColumn>
               <TableColumn>SYMBOL</TableColumn>
@@ -931,7 +937,7 @@ export default function CorporateActionRecordsPage() {
                           isIconOnly
                           onPress={() => handleViewDetails(record)}
                         >
-                          <FiEye />
+                          <FiEye className="text-lg" />
                         </Button>
                       </Tooltip>
                       <Tooltip content="Edit Record">
@@ -941,7 +947,7 @@ export default function CorporateActionRecordsPage() {
                           isIconOnly
                           onPress={() => handleEditRecord(record)}
                         >
-                          <FiEdit2 />
+                          <FiEdit2 className="text-lg" />
                         </Button>
                       </Tooltip>
                       <Tooltip content="Delete Record">
@@ -952,7 +958,7 @@ export default function CorporateActionRecordsPage() {
                           color="danger"
                           onPress={() => handleDeleteRecord(record)}
                         >
-                          <FiTrash2 />
+                          <FiTrash2 className="text-lg" />
                         </Button>
                       </Tooltip>
                     </div>
@@ -960,8 +966,7 @@ export default function CorporateActionRecordsPage() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
-        </div>
+        </Table>
 
         {/* Pagination */}
         {records.length > 0 && (
@@ -1091,7 +1096,14 @@ export default function CorporateActionRecordsPage() {
                         No details available for this record
                       </div>
                     ) : (
-                      <Table aria-label="Corporate action details table">
+                      <Table aria-label="Corporate action details table"
+                        className="glass-card rounded-xl shadow-lg overflow-hidden"
+                        classNames={{
+                          wrapper: "p-0",
+                          base: "p-0",
+                          th: "text-xs sm:text-sm",
+                          td: "text-xs sm:text-sm py-2",
+                        }}>
                         <TableHeader>
                           <TableColumn>TARGET STOCK</TableColumn>
                           <TableColumn>QTY HELD</TableColumn>
@@ -1185,7 +1197,7 @@ export default function CorporateActionRecordsPage() {
                                       isIconOnly
                                       onPress={() => handleEditDetail(detail)}
                                     >
-                                      <FiEdit2 />
+                                      <FiEdit2 className="text-lg" />
                                     </Button>
                                   </Tooltip>
                                   <Tooltip content="Delete Detail">
@@ -1196,7 +1208,7 @@ export default function CorporateActionRecordsPage() {
                                       color="danger"
                                       onPress={() => handleDeleteDetail(detail)}
                                     >
-                                      <FiTrash2 />
+                                      <FiTrash2 className="text-lg" />
                                     </Button>
                                   </Tooltip>
                                 </div>
@@ -1822,7 +1834,7 @@ export default function CorporateActionRecordsPage() {
                                 handleRemoveDetailRow(detail.tempId)
                               }
                             >
-                              <FiTrash2 />
+                              <FiTrash2 className="text-lg" />
                             </Button>
                           </div>
 

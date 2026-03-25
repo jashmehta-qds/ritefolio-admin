@@ -99,8 +99,14 @@ export default function CorporateActionTypesPage() {
         {/* Corporate Action Types Table */}
         <Table
           aria-label="Corporate action types table"
-          className="max-h-[70vh] overflow-auto"
           isHeaderSticky
+          className="glass-card rounded-xl shadow-lg overflow-hidden"
+          classNames={{
+            wrapper: "max-h-[calc(100vh-250px)] p-0",
+            base: "p-0",
+            th: "text-xs sm:text-sm",
+            td: "text-xs sm:text-sm py-2",
+          }}
         >
           <TableHeader>
             <TableColumn>ID</TableColumn>

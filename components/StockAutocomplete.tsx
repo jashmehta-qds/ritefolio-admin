@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Autocomplete, AutocompleteItem } from "@heroui/autocomplete";
 import { FiDatabase } from "react-icons/fi";
+import { Chip } from "@heroui/chip";
 import axiosInstance from "@/lib/axios";
 
 export interface Stock {
@@ -299,6 +300,13 @@ export const StockAutocomplete: React.FC<StockAutocompleteProps> = ({
               {stock.Symbol && <span>Symbol: {stock.Symbol}</span>}
               {stock.Isin && <span>ISIN: {stock.Isin}</span>}
               {stock.Sector && <span>Sector: {stock.Sector}</span>}
+              <Chip
+                size="sm"
+                variant="dot"
+                color={stock.IsActive ? "success" : "danger"}
+              >
+                {stock.IsActive ? "Active" : "Inactive"}
+              </Chip>
             </div>
           </div>
         </AutocompleteItem>
