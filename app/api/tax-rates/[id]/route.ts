@@ -11,6 +11,7 @@ export async function PUT(
     const body = await request.json();
     const {
       countryId,
+      residentCountryId,
       taxAssetId,
       legalStatusId,
       period,
@@ -47,28 +48,12 @@ export async function PUT(
     }
 
     await queryDB({
-      query: `
-        UPDATE public."TaxRates"
-        SET
-          "CountryId" = $1,
-          "TaxAssetId" = $2,
-          "LegalStatusId" = $3,
-          "Period" = $4,
-          "StartDate" = $5,
-          "EndDate" = $6,
-          "StcgRate" = $7,
-          "LtcgRate" = $8,
-          "IncomeRate" = $9,
-          "LtcgExemption" = $10,
-          "IndexationApplicable" = $11,
-          "Note" = $12,
-          "IsActive" = $13,
-          "UpdatedOn" = EXTRACT(epoch FROM now())::INTEGER
-        WHERE "Id" = $14
-      `,
+      query: `CALL public."UpdateTaxRates"($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
       dbName: process.env.PG_DEFAULT_DB,
       params: [
+        id,
         countryId,
+        residentCountryId ?? null,
         taxAssetId,
         legalStatusId,
         period,
@@ -81,7 +66,6 @@ export async function PUT(
         indexationApplicable,
         note ?? null,
         isActive,
-        id,
       ],
     });
 
@@ -111,7 +95,7 @@ export async function DELETE(
     const { id } = await params;
 
     await queryDB({
-      query: `DELETE FROM public."TaxRates" WHERE "Id" = $1`,
+      query: `CALL public."DeleteTaxRate"($1)`,
       dbName: process.env.PG_DEFAULT_DB,
       params: [id],
     });

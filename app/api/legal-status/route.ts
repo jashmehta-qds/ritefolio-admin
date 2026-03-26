@@ -10,7 +10,7 @@ interface LegalStatus {
 export async function GET() {
   try {
     const legalStatuses = await queryDB<LegalStatus>({
-      query: `SELECT "Id", "Classification" FROM public."LegalStatus" ORDER BY "Id" ASC`,
+      query: `SELECT * FROM public."FetchLegalStatus"(NULL)`,
       dbName: process.env.PG_DEFAULT_DB,
     });
 

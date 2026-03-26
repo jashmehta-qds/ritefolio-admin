@@ -4,12 +4,16 @@ import { queryDB } from "@/utils/db";
 interface TaxAssetClass {
   Id: number;
   Name: string;
+  Description: string;
+  IsActive: boolean;
+  CreatedOn: number;
+  UpdatedOn: number;
 }
 
 export async function GET() {
   try {
     const assets = await queryDB<TaxAssetClass>({
-      query: `SELECT "Id", "Name" FROM public."TaxAssetClass" ORDER BY "Id" ASC`,
+      query: `SELECT * FROM public."FetchTaxAssetClass"(NULL, true)`,
       dbName: process.env.PG_DEFAULT_DB,
     });
 
