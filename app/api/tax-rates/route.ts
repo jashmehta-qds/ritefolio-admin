@@ -4,6 +4,7 @@ import { queryDB } from "@/utils/db";
 interface TaxRate {
   Id: number;
   CountryId: number;
+  ResidentCountryId: number | null;
   Country: string;
   TaxAssetId: number;
   TaxAsset: string;
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       countryId,
+      residentCountryId,
       taxAssetId,
       legalStatusId,
       period,
@@ -90,15 +92,11 @@ export async function POST(request: NextRequest) {
     }
 
     await queryDB({
-      query: `
-        INSERT INTO public."TaxRates"
-          ("CountryId", "TaxAssetId", "LegalStatusId", "Period", "StartDate", "EndDate",
-           "StcgRate", "LtcgRate", "IncomeRate", "LtcgExemption", "IndexationApplicable", "Note", "IsActive")
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-      `,
+      query: `CALL public."InsertTaxRate"($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
       dbName: process.env.PG_DEFAULT_DB,
       params: [
         countryId,
+        residentCountryId ?? null,
         taxAssetId,
         legalStatusId,
         period,

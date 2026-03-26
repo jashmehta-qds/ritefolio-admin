@@ -34,6 +34,7 @@ import { CountryAutocomplete } from "@/components/CountryAutocomplete";
 interface TaxRate {
   Id: number;
   CountryId: number;
+  ResidentCountryId: number | null;
   Country: string;
   TaxAssetId: number;
   TaxAsset: string;
@@ -65,6 +66,7 @@ interface LegalStatus {
 
 interface TaxRateFormData {
   countryId: string;
+  residentCountryId: string;
   taxAssetId: string;
   legalStatusId: string;
   period: string;
@@ -134,12 +136,22 @@ export default function TaxRatesPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedTaxRate, setSelectedTaxRate] = useState<TaxRate | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error";
+  } | null>(null);
   const router = useRouter();
+
+  const showToast = (message: string, type: "success" | "error") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
   const supabase = createClient();
 
   const formik = useFormik<TaxRateFormData>({
     initialValues: {
       countryId: "",
+      residentCountryId: "",
       taxAssetId: "",
       legalStatusId: "",
       period: "",
@@ -158,6 +170,9 @@ export default function TaxRatesPage() {
       try {
         const payload = {
           countryId: parseInt(values.countryId),
+          residentCountryId: values.residentCountryId
+            ? parseInt(values.residentCountryId)
+            : null,
           taxAssetId: parseInt(values.taxAssetId),
           legalStatusId: parseInt(values.legalStatusId),
           period: parseInt(values.period),
@@ -181,13 +196,19 @@ export default function TaxRatesPage() {
         if (result.success) {
           handleCloseModal();
           fetchTaxRates();
+          showToast(
+            selectedTaxRate
+              ? "Tax rate updated successfully"
+              : "Tax rate added successfully",
+            "success",
+          );
         } else {
           console.error("Failed to save tax rate:", result.error);
-          alert(`Error: ${result.message || result.error}`);
+          showToast(result.message || result.error || "Failed to save tax rate", "error");
         }
       } catch (error) {
         console.error("Error saving tax rate:", error);
-        alert("Failed to save tax rate");
+        showToast("Failed to save tax rate", "error");
       }
     },
   });
@@ -258,6 +279,9 @@ export default function TaxRatesPage() {
       setSelectedTaxRate(taxRate);
       formik.setValues({
         countryId: String(taxRate.CountryId),
+        residentCountryId: taxRate.ResidentCountryId
+          ? String(taxRate.ResidentCountryId)
+          : "",
         taxAssetId: String(taxRate.TaxAssetId),
         legalStatusId: String(taxRate.LegalStatusId),
         period: String(taxRate.Period),
@@ -298,13 +322,14 @@ export default function TaxRatesPage() {
         setIsDeleteModalOpen(false);
         setSelectedTaxRate(null);
         fetchTaxRates();
+        showToast("Tax rate deleted successfully", "success");
       } else {
         console.error("Failed to delete tax rate:", result.error);
-        alert(`Error: ${result.message || result.error}`);
+        showToast(result.message || result.error || "Failed to delete tax rate", "error");
       }
     } catch (error) {
       console.error("Error deleting tax rate:", error);
-      alert("Failed to delete tax rate");
+      showToast("Failed to delete tax rate", "error");
     } finally {
       setIsDeleting(false);
     }
@@ -454,8 +479,8 @@ export default function TaxRatesPage() {
               </ModalHeader>
               <ModalBody>
                 <div className="space-y-4">
-                  {/* Country, Tax Asset, Legal Status */}
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  {/* Country, Resident Country */}
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <CountryAutocomplete
                       name="countryId"
                       label="Country"
@@ -481,7 +506,26 @@ export default function TaxRatesPage() {
                           : undefined
                       }
                     />
+                    <CountryAutocomplete
+                      name="residentCountryId"
+                      label="Resident Country"
+                      value={
+                        formik.values.residentCountryId
+                          ? parseInt(formik.values.residentCountryId)
+                          : undefined
+                      }
+                      onSelectionChange={(value) =>
+                        formik.setFieldValue(
+                          "residentCountryId",
+                          value !== null ? String(value) : "",
+                        )
+                      }
+                      variant="flat"
+                    />
+                  </div>
 
+                  {/* Tax Asset, Legal Status */}
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Autocomplete
                       label="Tax Asset"
                       placeholder="Select tax asset"
@@ -752,6 +796,21 @@ export default function TaxRatesPage() {
           </ModalContent>
         </Modal>
       </div>
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <div
+            className={`rounded-lg px-6 py-4 shadow-lg ${
+              toast.type === "success"
+                ? "bg-success text-success-foreground"
+                : "bg-danger text-danger-foreground"
+            }`}
+          >
+            {toast.message}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
