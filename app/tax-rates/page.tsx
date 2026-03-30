@@ -131,7 +131,9 @@ export default function TaxRatesPage() {
   const [taxRates, setTaxRates] = useState<TaxRate[]>([]);
   const [taxAssets, setTaxAssets] = useState<TaxAssetClass[]>([]);
   const [legalStatuses, setLegalStatuses] = useState<LegalStatus[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [filterCountryId, setFilterCountryId] = useState<string>("");
+  const [filterLegalStatusId, setFilterLegalStatusId] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedTaxRate, setSelectedTaxRate] = useState<TaxRate | null>(null);
@@ -204,7 +206,10 @@ export default function TaxRatesPage() {
           );
         } else {
           console.error("Failed to save tax rate:", result.error);
-          showToast(result.message || result.error || "Failed to save tax rate", "error");
+          showToast(
+            result.message || result.error || "Failed to save tax rate",
+            "error",
+          );
         }
       } catch (error) {
         console.error("Error saving tax rate:", error);
@@ -221,19 +226,28 @@ export default function TaxRatesPage() {
 
       if (!user) {
         router.push("/");
-        return;
       }
-
-      fetchTaxRates();
     };
 
     checkAuth();
   }, [router, supabase.auth]);
 
+  useEffect(() => {
+    if (!filterCountryId) {
+      setTaxRates([]);
+      return;
+    }
+    fetchTaxRates();
+  }, [filterCountryId, filterLegalStatusId]);
+
   const fetchTaxRates = async () => {
     try {
       setIsLoading(true);
-      const response = await axiosInstance.get("/tax-rates");
+      const params = new URLSearchParams({ countryId: filterCountryId });
+      if (filterLegalStatusId) params.set("legalStatusId", filterLegalStatusId);
+      const response = await axiosInstance.get(
+        `/tax-rates?${params.toString()}`,
+      );
       const result = response.data;
 
       if (result.success) {
@@ -325,7 +339,10 @@ export default function TaxRatesPage() {
         showToast("Tax rate deleted successfully", "success");
       } else {
         console.error("Failed to delete tax rate:", result.error);
-        showToast(result.message || result.error || "Failed to delete tax rate", "error");
+        showToast(
+          result.message || result.error || "Failed to delete tax rate",
+          "error",
+        );
       }
     } catch (error) {
       console.error("Error deleting tax rate:", error);
@@ -345,17 +362,6 @@ export default function TaxRatesPage() {
     setSelectedTaxRate(null);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
-          <p className="mt-4 text-default-500">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="p-6">
       <div className="mx-auto max-w-7xl">
@@ -374,101 +380,153 @@ export default function TaxRatesPage() {
           </Button>
         </div>
 
-        {/* Tax Rates Table */}
-        <Table
-          aria-label="Tax rates table"
-          isHeaderSticky
-          className="glass-card rounded-xl shadow-lg overflow-hidden"
-          classNames={{
-            wrapper: "max-h-[calc(100vh-250px)] p-0",
-            base: "p-0",
-            th: "text-xs sm:text-sm",
-            td: "text-xs sm:text-sm py-2",
-          }}
-        >
-          <TableHeader>
-            <TableColumn>ID</TableColumn>
-            <TableColumn>COUNTRY</TableColumn>
-            <TableColumn>TAX ASSET</TableColumn>
-            <TableColumn>LEGAL STATUS</TableColumn>
-            <TableColumn>PERIOD</TableColumn>
-            <TableColumn>START DATE</TableColumn>
-            <TableColumn>END DATE</TableColumn>
-            <TableColumn>STCG %</TableColumn>
-            <TableColumn>LTCG %</TableColumn>
-            <TableColumn>INCOME %</TableColumn>
-            <TableColumn>LTCG EXEMPTION</TableColumn>
-            <TableColumn>INDEXATION</TableColumn>
-            <TableColumn>STATUS</TableColumn>
-            <TableColumn>ACTIONS</TableColumn>
-          </TableHeader>
-          <TableBody>
-            {taxRates.map((taxRate) => (
-              <TableRow key={taxRate.Id}>
-                <TableCell>{taxRate.Id}</TableCell>
-                <TableCell>{taxRate.Country || "-"}</TableCell>
-                <TableCell>{taxRate.TaxAsset || "-"}</TableCell>
-                <TableCell>{taxRate.LegalStatus || "-"}</TableCell>
-                <TableCell>{taxRate.Period}</TableCell>
-                <TableCell>{formatEpochDate(taxRate.StartDate)}</TableCell>
-                <TableCell>
-                  {taxRate.EndDate ? formatEpochDate(taxRate.EndDate) : "-"}
-                </TableCell>
-                <TableCell>{taxRate.StcgRate}%</TableCell>
-                <TableCell>{taxRate.LtcgRate}%</TableCell>
-                <TableCell>{taxRate.IncomeRate}%</TableCell>
-                <TableCell>{taxRate.LtcgExemption}</TableCell>
-                <TableCell>
-                  <Chip
-                    color={
-                      taxRate.IndexationApplicable ? "secondary" : "default"
-                    }
-                    size="sm"
-                    variant="flat"
-                  >
-                    {taxRate.IndexationApplicable ? "Yes" : "No"}
-                  </Chip>
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    color={taxRate.IsActive ? "success" : "default"}
-                    size="sm"
-                    variant="flat"
-                  >
-                    {taxRate.IsActive ? "Active" : "Inactive"}
-                  </Chip>
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Tooltip content="Edit">
-                      <Button
-                        size="sm"
-                        variant="light"
-                        isIconOnly
-                        onPress={() => handleOpenModal(taxRate)}
-                        aria-label="Edit"
-                      >
-                        <FiEdit2 className="text-lg" />
-                      </Button>
-                    </Tooltip>
-                    <Tooltip content="Delete">
-                      <Button
-                        size="sm"
-                        variant="light"
-                        color="danger"
-                        isIconOnly
-                        onPress={() => openDeleteModal(taxRate)}
-                        aria-label="Delete"
-                      >
-                        <FiTrash2 className="text-lg" />
-                      </Button>
-                    </Tooltip>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        {/* Filters */}
+        <div className="glass-card rounded-xl mb-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <CountryAutocomplete
+              name="filterCountryId"
+              label="Country"
+              value={filterCountryId ? parseInt(filterCountryId) : undefined}
+              onSelectionChange={(value) => {
+                setFilterCountryId(value !== null ? String(value) : "");
+                setFilterLegalStatusId("");
+                if (value) fetchLegalStatuses();
+              }}
+              variant="flat"
+            />
+            <Autocomplete
+              label="Legal Status"
+              placeholder={
+                filterCountryId
+                  ? "All legal statuses"
+                  : "Select a country first"
+              }
+              isDisabled={!filterCountryId}
+              selectedKey={filterLegalStatusId || null}
+              onSelectionChange={(key) =>
+                setFilterLegalStatusId(key ? String(key) : "")
+              }
+              defaultItems={legalStatuses}
+            >
+              {(ls) => (
+                <AutocompleteItem
+                  key={String(ls.Id)}
+                  textValue={ls.Classification}
+                >
+                  {ls.Classification}
+                </AutocompleteItem>
+              )}
+            </Autocomplete>
+          </div>
+        </div>
+
+        {/* Tax Rates Table / Empty State */}
+        {!filterCountryId ? (
+          <div className="glass-card rounded-xl flex flex-col items-center justify-center py-20 text-center">
+            <p className="text-default-400 text-sm max-w-sm">
+              Select a country to view applicable tax rates. You may further
+              refine the results by legal status.
+            </p>
+          </div>
+        ) : isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+              <p className="mt-4 text-default-500">Loading...</p>
+            </div>
+          </div>
+        ) : (
+          <Table
+            aria-label="Tax rates table"
+            isHeaderSticky
+            className="glass-card rounded-xl shadow-lg overflow-hidden"
+            classNames={{
+              wrapper: "max-h-[calc(100vh-340px)] p-0",
+              base: "p-0",
+              th: "text-xs sm:text-sm",
+              td: "text-xs sm:text-sm py-2",
+            }}
+          >
+            <TableHeader>
+              <TableColumn>ID</TableColumn>
+              <TableColumn>TAX ASSET</TableColumn>
+              <TableColumn>PERIOD</TableColumn>
+              <TableColumn>START DATE</TableColumn>
+              <TableColumn>END DATE</TableColumn>
+              <TableColumn>STCG %</TableColumn>
+              <TableColumn>LTCG %</TableColumn>
+              <TableColumn>INCOME %</TableColumn>
+              <TableColumn>LTCG EXEMPTION</TableColumn>
+              <TableColumn>INDEXATION</TableColumn>
+              <TableColumn>STATUS</TableColumn>
+              <TableColumn>ACTIONS</TableColumn>
+            </TableHeader>
+            <TableBody emptyContent="No tax rates found for the selected filters.">
+              {taxRates.map((taxRate) => (
+                <TableRow key={taxRate.Id}>
+                  <TableCell>{taxRate.Id}</TableCell>
+                  <TableCell>{taxRate.TaxAsset || "-"}</TableCell>
+                  <TableCell>{taxRate.Period}</TableCell>
+                  <TableCell>{formatEpochDate(taxRate.StartDate)}</TableCell>
+                  <TableCell>
+                    {taxRate.EndDate ? formatEpochDate(taxRate.EndDate) : "-"}
+                  </TableCell>
+                  <TableCell>{taxRate.StcgRate}%</TableCell>
+                  <TableCell>{taxRate.LtcgRate}%</TableCell>
+                  <TableCell>{taxRate.IncomeRate}%</TableCell>
+                  <TableCell>{taxRate.LtcgExemption}</TableCell>
+                  <TableCell>
+                    <Chip
+                      color={
+                        taxRate.IndexationApplicable ? "secondary" : "default"
+                      }
+                      size="sm"
+                      variant="flat"
+                    >
+                      {taxRate.IndexationApplicable ? "Yes" : "No"}
+                    </Chip>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      color={taxRate.IsActive ? "success" : "default"}
+                      size="sm"
+                      variant="flat"
+                    >
+                      {taxRate.IsActive ? "Active" : "Inactive"}
+                    </Chip>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Tooltip content="Edit">
+                        <Button
+                          size="sm"
+                          variant="light"
+                          isIconOnly
+                          onPress={() => handleOpenModal(taxRate)}
+                          aria-label="Edit"
+                        >
+                          <FiEdit2 className="text-lg" />
+                        </Button>
+                      </Tooltip>
+                      <Tooltip content="Delete">
+                        <Button
+                          size="sm"
+                          variant="light"
+                          color="danger"
+                          isIconOnly
+                          onPress={() => openDeleteModal(taxRate)}
+                          aria-label="Delete"
+                        >
+                          <FiTrash2 className="text-lg" />
+                        </Button>
+                      </Tooltip>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
 
         {/* Add/Edit Modal */}
         <Modal isOpen={isModalOpen} onClose={handleCloseModal} size="3xl">
