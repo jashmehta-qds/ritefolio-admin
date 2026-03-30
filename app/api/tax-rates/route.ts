@@ -24,17 +24,28 @@ interface TaxRate {
   UpdatedOn: number | null;
 }
 
-// GET: Fetch all tax rates using FetchTaxRates DB function
-export async function GET() {
+// GET: Fetch tax rates, optionally filtered by countryId and legalStatusId
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const countryId = searchParams.get("countryId");
+    const legalStatusId = searchParams.get("legalStatusId");
+
     const taxRates = await queryDB<TaxRate>({
-      query: `SELECT * FROM public."FetchTaxRates"()`,
+      query: `SELECT * FROM public."FetchTaxRates"(
+        p_country_id := $1,
+        p_legal_status_id := $2
+      )`,
       dbName: process.env.PG_DEFAULT_DB,
+      params: [
+        countryId ? parseInt(countryId) : null,
+        legalStatusId ? parseInt(legalStatusId) : null,
+      ],
     });
 
     return NextResponse.json(
       { success: true, data: taxRates },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("Error fetching tax rates:", error);
@@ -44,7 +55,7 @@ export async function GET() {
         error: "Failed to fetch tax rates",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -87,7 +98,7 @@ export async function POST(request: NextRequest) {
           message:
             "CountryId, TaxAssetId, LegalStatusId, Period, StartDate, StcgRate, LtcgRate, and IncomeRate are required",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -114,7 +125,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { success: true, message: "Tax rate created successfully" },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Error creating tax rate:", error);
@@ -124,7 +135,7 @@ export async function POST(request: NextRequest) {
         error: "Failed to create tax rate",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
