@@ -144,6 +144,10 @@ export default function CorporateActionRecordsPage() {
   const [tempStartDate, setTempStartDate] = useState<string>("");
   const [tempEndDate, setTempEndDate] = useState<string>("");
 
+  // Status filter state ("" = all, "true" = active, "false" = inactive)
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [tempStatusFilter, setTempStatusFilter] = useState<string>("");
+
   // Edit states
   const [isEditRecordModalOpen, setIsEditRecordModalOpen] = useState(false);
   const [isEditDetailModalOpen, setIsEditDetailModalOpen] = useState(false);
@@ -253,12 +257,12 @@ export default function CorporateActionRecordsPage() {
     checkAuth();
   }, [router, supabase.auth]);
 
-  // Fetch records when page, pageSize, or date filters change
+  // Fetch records when page, pageSize, date filters, or status filter change
   useEffect(() => {
     if (startDate && endDate) {
       fetchRecords();
     }
-  }, [currentPage, pageSize, startDate, endDate]);
+  }, [currentPage, pageSize, startDate, endDate, statusFilter]);
 
   const fetchRecords = async () => {
     try {
@@ -277,6 +281,10 @@ export default function CorporateActionRecordsPage() {
       if (endDate) {
         const endEpoch = dateToEpoch(new Date(endDate));
         params.append("endDate", endEpoch.toString());
+      }
+
+      if (statusFilter !== "") {
+        params.append("isActive", statusFilter);
       }
 
       const response = await axiosInstance.get(
@@ -307,6 +315,7 @@ export default function CorporateActionRecordsPage() {
   const handleApplyFilters = () => {
     setStartDate(tempStartDate);
     setEndDate(tempEndDate);
+    setStatusFilter(tempStatusFilter);
     setCurrentPage(1); // Reset to first page when filters change
   };
 
@@ -324,6 +333,8 @@ export default function CorporateActionRecordsPage() {
     setTempEndDate(defaultEnd);
     setStartDate(defaultStart);
     setEndDate(defaultEnd);
+    setTempStatusFilter("");
+    setStatusFilter("");
     setCurrentPage(1);
   };
 
@@ -863,6 +874,21 @@ export default function CorporateActionRecordsPage() {
                 max={new Date().toISOString().split("T")[0]}
                 size="sm"
               />
+            </div>
+            <div className="flex-1 min-w-[150px]">
+              <Select
+                label="Status"
+                placeholder="All"
+                selectedKeys={tempStatusFilter !== "" ? [tempStatusFilter] : []}
+                onSelectionChange={(keys) => {
+                  const val = Array.from(keys)[0] as string ?? "";
+                  setTempStatusFilter(val);
+                }}
+                size="sm"
+              >
+                <SelectItem key="true">Active</SelectItem>
+                <SelectItem key="false">Inactive</SelectItem>
+              </Select>
             </div>
             <div className="flex gap-2">
               <Button

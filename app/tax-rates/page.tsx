@@ -115,6 +115,20 @@ const taxRateValidationSchema = Yup.object({
   isActive: Yup.boolean(),
 });
 
+const LEGAL_STATUS_CHIP_COLORS = [
+  "primary",
+  "secondary",
+  "success",
+  "warning",
+  "danger",
+  "default",
+] as const;
+
+type ChipColor = (typeof LEGAL_STATUS_CHIP_COLORS)[number];
+
+const getLegalStatusColor = (id: number): ChipColor =>
+  LEGAL_STATUS_CHIP_COLORS[(id - 1) % LEGAL_STATUS_CHIP_COLORS.length];
+
 const dateStringToEpoch = (dateStr: string): number => {
   return Math.floor(new Date(dateStr).getTime() / 1000);
 };
@@ -385,7 +399,7 @@ export default function TaxRatesPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <CountryAutocomplete
               name="filterCountryId"
-              label="Country"
+              label="Tax Country"
               value={filterCountryId ? parseInt(filterCountryId) : undefined}
               onSelectionChange={(value) => {
                 setFilterCountryId(value !== null ? String(value) : "");
@@ -407,13 +421,31 @@ export default function TaxRatesPage() {
                 setFilterLegalStatusId(key ? String(key) : "")
               }
               defaultItems={legalStatuses}
+              startContent={
+                filterLegalStatusId ? (
+                  <Chip
+                    size="sm"
+                    variant="dot"
+                    color={getLegalStatusColor(parseInt(filterLegalStatusId))}
+                    classNames={{ base: "border-none bg-transparent", content: "hidden px-0" }}
+                  />
+                ) : undefined
+              }
             >
               {(ls) => (
                 <AutocompleteItem
                   key={String(ls.Id)}
                   textValue={ls.Classification}
                 >
-                  {ls.Classification}
+                  <div className="flex items-center gap-2">
+                    <Chip
+                      size="sm"
+                      variant="dot"
+                      color={getLegalStatusColor(ls.Id)}
+                    >
+                      {ls.Classification}
+                    </Chip>
+                  </div>
                 </AutocompleteItem>
               )}
             </Autocomplete>
@@ -465,7 +497,17 @@ export default function TaxRatesPage() {
               {taxRates.map((taxRate) => (
                 <TableRow key={taxRate.Id}>
                   <TableCell>{taxRate.Id}</TableCell>
-                  <TableCell>{taxRate.TaxAsset || "-"}</TableCell>
+                  <TableCell>
+                    <Tooltip content={taxRate.LegalStatus}>
+                      <Chip
+                        size="sm"
+                        variant="dot"
+                        color={getLegalStatusColor(taxRate.LegalStatusId)}
+                      >
+                        {taxRate.TaxAsset || "-"}
+                      </Chip>
+                    </Tooltip>
+                  </TableCell>
                   <TableCell>{taxRate.Period}</TableCell>
                   <TableCell>{formatEpochDate(taxRate.StartDate)}</TableCell>
                   <TableCell>
