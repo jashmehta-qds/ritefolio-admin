@@ -3,6 +3,8 @@ import { queryDB } from "@/utils/db";
 
 interface TaxRate {
   Id: number;
+  InvestmentTypeId: number;
+  ShortCode: string;
   CountryId: number;
   ResidentCountryId: number | null;
   Country: string;
@@ -29,16 +31,19 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const countryId = searchParams.get("countryId");
+    const taxAssetId = searchParams.get("taxAssetId");
     const legalStatusId = searchParams.get("legalStatusId");
 
     const taxRates = await queryDB<TaxRate>({
       query: `SELECT * FROM public."FetchTaxRates"(
         p_country_id := $1,
-        p_legal_status_id := $2
+        p_asset_id := $2,
+        p_legal_status_id := $3
       )`,
       dbName: process.env.PG_DEFAULT_DB,
       params: [
         countryId ? parseInt(countryId) : null,
+        taxAssetId ? parseInt(taxAssetId) : null,
         legalStatusId ? parseInt(legalStatusId) : null,
       ],
     });
