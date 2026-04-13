@@ -198,7 +198,8 @@ export default function CorporateActionRecordsPage() {
 
   // Add states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [addAllotmentDateValue, setAddAllotmentDateValue] = useState<string>("");
+  const [addAllotmentDateValue, setAddAllotmentDateValue] =
+    useState<string>("");
   const [newAction, setNewAction] = useState<NewCorporateAction>({
     sourceStockId: "",
     corpActionTypeId: 0,
@@ -881,7 +882,7 @@ export default function CorporateActionRecordsPage() {
                 placeholder="All"
                 selectedKeys={tempStatusFilter !== "" ? [tempStatusFilter] : []}
                 onSelectionChange={(keys) => {
-                  const val = Array.from(keys)[0] as string ?? "";
+                  const val = (Array.from(keys)[0] as string) ?? "";
                   setTempStatusFilter(val);
                 }}
                 size="sm"
@@ -912,86 +913,89 @@ export default function CorporateActionRecordsPage() {
         </div>
 
         {/* Records Table */}
-        <Table aria-label="Corporate action records table" isHeaderSticky
+        <Table
+          aria-label="Corporate action records table"
+          isHeaderSticky
           className="glass-card rounded-xl shadow-lg overflow-hidden"
           classNames={{
             wrapper: "max-h-[calc(100vh-250px)] p-0",
             base: "p-0",
             th: "text-xs sm:text-sm",
             td: "text-xs sm:text-sm py-2",
-          }}>
-            <TableHeader>
-              <TableColumn>ISIN</TableColumn>
-              <TableColumn>SYMBOL</TableColumn>
-              <TableColumn>STOCK NAME</TableColumn>
-              <TableColumn>ACTION TYPE</TableColumn>
-              <TableColumn>EX DATE</TableColumn>
-              <TableColumn>RECORD DATE</TableColumn>
-              <TableColumn>ALLOTMENT DATE</TableColumn>
-              <TableColumn>STATUS</TableColumn>
-              <TableColumn>ACTIONS</TableColumn>
-            </TableHeader>
-            <TableBody>
-              {records.map((record) => (
-                <TableRow key={record.Id}>
-                  <TableCell>{record.Isin}</TableCell>
-                  <TableCell>{record.Symbol}</TableCell>
-                  <TableCell>{record.StockName}</TableCell>
-                  <TableCell>
-                    <Chip size="sm" variant="dot" color="primary">
-                      {record.CorporateActionName}
-                    </Chip>
-                  </TableCell>
-                  <TableCell>{formatEpochDate(record.ExDate)}</TableCell>
-                  <TableCell>{formatEpochDate(record.RecordDate)}</TableCell>
-                  <TableCell>{formatEpochDate(record.AllotmentDate)}</TableCell>
-                  <TableCell>
-                    <Chip
-                      color={record.IsActive ? "success" : "default"}
-                      size="sm"
-                      variant="flat"
-                    >
-                      {record.IsActive ? "Active" : "Inactive"}
-                    </Chip>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Tooltip content="View Details">
-                        <Button
-                          size="sm"
-                          variant="light"
-                          isIconOnly
-                          onPress={() => handleViewDetails(record)}
-                        >
-                          <FiEye className="text-lg" />
-                        </Button>
-                      </Tooltip>
-                      <Tooltip content="Edit Record">
-                        <Button
-                          size="sm"
-                          variant="light"
-                          isIconOnly
-                          onPress={() => handleEditRecord(record)}
-                        >
-                          <FiEdit2 className="text-lg" />
-                        </Button>
-                      </Tooltip>
-                      <Tooltip content="Delete Record">
-                        <Button
-                          size="sm"
-                          variant="light"
-                          isIconOnly
-                          color="danger"
-                          onPress={() => handleDeleteRecord(record)}
-                        >
-                          <FiTrash2 className="text-lg" />
-                        </Button>
-                      </Tooltip>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
+          }}
+        >
+          <TableHeader>
+            <TableColumn>ISIN</TableColumn>
+            <TableColumn>SYMBOL</TableColumn>
+            <TableColumn>STOCK NAME</TableColumn>
+            <TableColumn>ACTION TYPE</TableColumn>
+            <TableColumn>EX DATE</TableColumn>
+            <TableColumn>RECORD DATE</TableColumn>
+            <TableColumn>ALLOTMENT DATE</TableColumn>
+            <TableColumn>STATUS</TableColumn>
+            <TableColumn>ACTIONS</TableColumn>
+          </TableHeader>
+          <TableBody>
+            {records.map((record) => (
+              <TableRow key={record.Id}>
+                <TableCell>{record.Isin}</TableCell>
+                <TableCell>{record.Symbol}</TableCell>
+                <TableCell>{record.StockName}</TableCell>
+                <TableCell>
+                  <Chip size="sm" variant="dot" color="primary">
+                    {record.CorporateActionName}
+                  </Chip>
+                </TableCell>
+                <TableCell>{formatEpochDate(record.ExDate)}</TableCell>
+                <TableCell>{formatEpochDate(record.RecordDate)}</TableCell>
+                <TableCell>{formatEpochDate(record.AllotmentDate)}</TableCell>
+                <TableCell>
+                  <Chip
+                    color={record.IsActive ? "success" : "default"}
+                    size="sm"
+                    variant="flat"
+                  >
+                    {record.IsActive ? "Active" : "Inactive"}
+                  </Chip>
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Tooltip content="View Details">
+                      <Button
+                        size="sm"
+                        variant="light"
+                        isIconOnly
+                        onPress={() => handleViewDetails(record)}
+                      >
+                        <FiEye className="text-lg" />
+                      </Button>
+                    </Tooltip>
+                    <Tooltip content="Edit Record">
+                      <Button
+                        size="sm"
+                        variant="light"
+                        isIconOnly
+                        onPress={() => handleEditRecord(record)}
+                      >
+                        <FiEdit2 className="text-lg" />
+                      </Button>
+                    </Tooltip>
+                    <Tooltip content="Delete Record">
+                      <Button
+                        size="sm"
+                        variant="light"
+                        isIconOnly
+                        color="danger"
+                        onPress={() => handleDeleteRecord(record)}
+                      >
+                        <FiTrash2 className="text-lg" />
+                      </Button>
+                    </Tooltip>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
         </Table>
 
         {/* Pagination */}
@@ -1122,14 +1126,16 @@ export default function CorporateActionRecordsPage() {
                         No details available for this record
                       </div>
                     ) : (
-                      <Table aria-label="Corporate action details table"
+                      <Table
+                        aria-label="Corporate action details table"
                         className="glass-card rounded-xl shadow-lg overflow-hidden"
                         classNames={{
                           wrapper: "p-0",
                           base: "p-0",
                           th: "text-xs sm:text-sm",
                           td: "text-xs sm:text-sm py-2",
-                        }}>
+                        }}
+                      >
                         <TableHeader>
                           <TableColumn>TARGET STOCK</TableColumn>
                           <TableColumn>QTY HELD</TableColumn>
@@ -1283,7 +1289,6 @@ export default function CorporateActionRecordsPage() {
                       }
                     }}
                     initialStockName={initialStockName}
-                    investmentTypeIds={CA_INVESTMENT_TYPE_IDS}
                     isRequired
                   />
 
@@ -1440,7 +1445,6 @@ export default function CorporateActionRecordsPage() {
                       }
                     }}
                     initialStockName={initialTargetStockName}
-                    investmentTypeIds={CA_INVESTMENT_TYPE_IDS}
                     isRequired
                   />
 
@@ -1596,7 +1600,6 @@ export default function CorporateActionRecordsPage() {
                     }
                   }}
                   initialStockName={initialTargetStockName}
-                  investmentTypeIds={CA_INVESTMENT_TYPE_IDS}
                   isRequired
                 />
 
@@ -1734,7 +1737,6 @@ export default function CorporateActionRecordsPage() {
                       }
                     }}
                     initialStockName={initialStockName}
-                    investmentTypeIds={CA_INVESTMENT_TYPE_IDS}
                     isRequired
                   />
 
@@ -1783,9 +1785,7 @@ export default function CorporateActionRecordsPage() {
                         const date = new Date(value);
                         const nextDay = new Date(value);
                         nextDay.setUTCDate(nextDay.getUTCDate() + 1);
-                        const nextDayStr = nextDay
-                          .toISOString()
-                          .split("T")[0];
+                        const nextDayStr = nextDay.toISOString().split("T")[0];
                         setAddAllotmentDateValue(nextDayStr);
                         setNewAction({
                           ...newAction,
@@ -1894,7 +1894,6 @@ export default function CorporateActionRecordsPage() {
                             initialStockName={
                               targetStockNames[detail.tempId] || ""
                             }
-                            investmentTypeIds={CA_INVESTMENT_TYPE_IDS}
                             isRequired
                           />
 
