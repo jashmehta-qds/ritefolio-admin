@@ -45,15 +45,19 @@ export async function GET(request: NextRequest) {
     const stockName = searchParams.get("stockName") || null;
     const bseCode = searchParams.get("bseCode") || null;
     const investmentType = (() => {
-      const ids = searchParams.getAll("investmentType").map(Number).filter((n) => !isNaN(n));
+      const ids = searchParams
+        .getAll("investmentType")
+        .map(Number)
+        .filter((n) => !isNaN(n));
       return ids.length > 0 ? ids[0] : null;
     })();
     const countryId = searchParams.get("countryId")
       ? parseInt(searchParams.get("countryId")!)
       : null;
-    const isActive = searchParams.get("isActive") !== null
-      ? searchParams.get("isActive") === "true"
-      : true;
+    const isActive =
+      searchParams.get("isActive") !== null
+        ? searchParams.get("isActive") === "true"
+        : true;
 
     // Pagination parameters
     const page = searchParams.get("page")
@@ -92,7 +96,7 @@ export async function GET(request: NextRequest) {
           hasMore: stocks.length === limit,
         },
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("Error fetching unlisted stocks:", error);
@@ -102,100 +106,40 @@ export async function GET(request: NextRequest) {
         error: "Failed to fetch unlisted stocks",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-// POST: Add a new unlisted stock using InsertUnlistedStock procedure
+// POST: Add a new unlisted stock using InsertStockStaging procedure
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const {
-      countryId,
-      investmentType,
-      isin,
-      stockName,
-      faceValue,
-      symbol,
-      bseCode,
-      macroSector,
-      sector,
-      industry,
-      basicIndustry,
-      sectoralIndex,
-      slb,
-      listingDate,
-      recordDate,
-      issueDate,
-      maturityDate,
-      ipoDate,
-      broadIndustry,
-      series,
-      issuer,
-      couponRate,
-      couponFrequency,
-      status,
-      description,
-      schemeName,
-      parentStockId,
-      isActive,
-    } = body;
+    const { countryId, isin, stockName, symbol, bseCode } = body;
 
-    // Validate required fields
-    if (!countryId || !investmentType || !stockName || !faceValue) {
+    // Validate that at least one identifier is provided
+    if (!symbol && !isin && !bseCode && !stockName) {
       return NextResponse.json(
         {
           success: false,
-          error: "Missing required fields",
+          error:
+            "At least one of symbol, ISIN, BSE code, or stock name must be provided",
         },
-        { status: 400 }
-      );
-    }
-
-    // Validate that at least ISIN or Symbol is provided
-    if (!isin && !symbol) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "At least one of ISIN or Symbol must be provided",
-        },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     await callProcedure({
-      procedureName: 'public."InsertUnlistedStock"',
+      procedureName: 'public."InsertStockStaging"',
       dbName: process.env.PG_DEFAULT_DB,
       params: [
-        countryId,
-        investmentType,
-        stockName,
-        faceValue,
-        isin || null,
+        null, // OUT v_stock_id UUID
         symbol || null,
+        isin || null,
         bseCode || null,
-        macroSector || null,
-        sector || null,
-        industry || null,
-        basicIndustry || null,
-        sectoralIndex || null,
-        slb || false,
-        listingDate || null,
-        recordDate || null,
-        issueDate || null,
-        maturityDate || null,
-        ipoDate || null,
-        broadIndustry || null,
-        series || null,
-        issuer || null,
-        couponRate || null,
-        couponFrequency || null,
-        status || null,
-        description || null,
-        schemeName || null,
-        parentStockId || null,
-        isActive !== undefined ? isActive : true,
+        stockName || null,
+        countryId ? parseInt(countryId) : null,
+        null, // p_created_by UUID
       ],
     });
 
@@ -204,7 +148,7 @@ export async function POST(request: NextRequest) {
         success: true,
         message: "Unlisted stock added successfully",
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Error adding unlisted stock:", error);
@@ -214,7 +158,7 @@ export async function POST(request: NextRequest) {
         error: "Failed to add unlisted stock",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
