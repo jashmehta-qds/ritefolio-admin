@@ -33,6 +33,8 @@ import { CountryAutocomplete } from "@/components/CountryAutocomplete";
 
 interface TaxRate {
   Id: number;
+  InvestmentTypeId: number;
+  ShortCode: string;
   CountryId: number;
   ResidentCountryId: number | null;
   Country: string;
@@ -147,6 +149,7 @@ export default function TaxRatesPage() {
   const [legalStatuses, setLegalStatuses] = useState<LegalStatus[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [filterCountryId, setFilterCountryId] = useState<string>("");
+  const [filterTaxAssetId, setFilterTaxAssetId] = useState<string>("");
   const [filterLegalStatusId, setFilterLegalStatusId] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -247,17 +250,18 @@ export default function TaxRatesPage() {
   }, [router, supabase.auth]);
 
   useEffect(() => {
-    if (!filterCountryId) {
+    if (!filterCountryId || !filterTaxAssetId) {
       setTaxRates([]);
       return;
     }
     fetchTaxRates();
-  }, [filterCountryId, filterLegalStatusId]);
+  }, [filterCountryId, filterTaxAssetId, filterLegalStatusId]);
 
   const fetchTaxRates = async () => {
     try {
       setIsLoading(true);
       const params = new URLSearchParams({ countryId: filterCountryId });
+      if (filterTaxAssetId) params.set("taxAssetId", filterTaxAssetId);
       if (filterLegalStatusId) params.set("legalStatusId", filterLegalStatusId);
       const response = await axiosInstance.get(
         `/tax-rates?${params.toString()}`,
@@ -396,18 +400,44 @@ export default function TaxRatesPage() {
 
         {/* Filters */}
         <div className="glass-card rounded-xl mb-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <CountryAutocomplete
               name="filterCountryId"
               label="Tax Country"
               value={filterCountryId ? parseInt(filterCountryId) : undefined}
               onSelectionChange={(value) => {
                 setFilterCountryId(value !== null ? String(value) : "");
+                setFilterTaxAssetId("");
                 setFilterLegalStatusId("");
-                if (value) fetchLegalStatuses();
+                if (value) {
+                  fetchTaxAssets();
+                  fetchLegalStatuses();
+                }
               }}
               variant="flat"
+              isRequired
             />
+            <Autocomplete
+              label="Tax Asset"
+              placeholder={
+                filterCountryId
+                  ? "Select a tax asset"
+                  : "Select a country first"
+              }
+              isDisabled={!filterCountryId}
+              isRequired
+              selectedKey={filterTaxAssetId || null}
+              onSelectionChange={(key) =>
+                setFilterTaxAssetId(key ? String(key) : "")
+              }
+              defaultItems={taxAssets}
+            >
+              {(asset) => (
+                <AutocompleteItem key={String(asset.Id)} textValue={asset.Name}>
+                  {asset.Name}
+                </AutocompleteItem>
+              )}
+            </Autocomplete>
             <Autocomplete
               label="Legal Status"
               placeholder={
@@ -427,7 +457,10 @@ export default function TaxRatesPage() {
                     size="sm"
                     variant="dot"
                     color={getLegalStatusColor(parseInt(filterLegalStatusId))}
-                    classNames={{ base: "border-none bg-transparent", content: "hidden px-0" }}
+                    classNames={{
+                      base: "border-none bg-transparent",
+                      content: "hidden px-0",
+                    }}
                   />
                 ) : undefined
               }
@@ -453,11 +486,12 @@ export default function TaxRatesPage() {
         </div>
 
         {/* Tax Rates Table / Empty State */}
-        {!filterCountryId ? (
+        {!filterCountryId || !filterTaxAssetId ? (
           <div className="glass-card rounded-xl flex flex-col items-center justify-center py-20 text-center">
             <p className="text-default-400 text-sm max-w-sm">
-              Select a country to view applicable tax rates. You may further
-              refine the results by legal status.
+              {!filterCountryId
+                ? "Select a country to get started."
+                : "Select a tax asset to view applicable tax rates. You may further refine the results by legal status."}
             </p>
           </div>
         ) : isLoading ? (
@@ -481,7 +515,7 @@ export default function TaxRatesPage() {
           >
             <TableHeader>
               <TableColumn>ID</TableColumn>
-              <TableColumn>TAX ASSET</TableColumn>
+              <TableColumn>INVESTMENT TYPE</TableColumn>
               <TableColumn>PERIOD</TableColumn>
               <TableColumn>START DATE</TableColumn>
               <TableColumn>END DATE</TableColumn>
@@ -495,7 +529,7 @@ export default function TaxRatesPage() {
             </TableHeader>
             <TableBody emptyContent="No tax rates found for the selected filters.">
               {taxRates.map((taxRate) => (
-                <TableRow key={taxRate.Id}>
+                <TableRow key={taxRate.Id + taxRate.ShortCode}>
                   <TableCell>{taxRate.Id}</TableCell>
                   <TableCell>
                     <Tooltip content={taxRate.LegalStatus}>
@@ -504,7 +538,7 @@ export default function TaxRatesPage() {
                         variant="dot"
                         color={getLegalStatusColor(taxRate.LegalStatusId)}
                       >
-                        {taxRate.TaxAsset || "-"}
+                        {taxRate.ShortCode || "-"}
                       </Chip>
                     </Tooltip>
                   </TableCell>

@@ -2,8 +2,8 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Autocomplete, AutocompleteItem } from "@heroui/autocomplete";
-import { FiDatabase } from "react-icons/fi";
 import { Chip } from "@heroui/chip";
+import { FiDatabase } from "react-icons/fi";
 import axiosInstance from "@/lib/axios";
 
 export interface Stock {
@@ -11,7 +11,7 @@ export interface Stock {
   Name: string;
   Symbol: string;
   Isin: string;
-  BseCode: string;
+  BseCode: string | null;
   Sector: string | null;
   MacroSector: string | null;
   Industry: string | null;
@@ -23,7 +23,7 @@ interface StockAutocompleteProps {
   name: string;
   label: string;
   placeholder?: string;
-  value?: string; // Stock ID
+  value?: string;
   onSelectionChange: (stockId: string | null, stock?: Stock) => void;
   variant?: "bordered" | "flat" | "faded" | "underlined";
   size?: "sm" | "md" | "lg";
@@ -33,7 +33,7 @@ interface StockAutocompleteProps {
   isDisabled?: boolean;
   description?: string;
   startContent?: React.ReactNode;
-  investmentTypeIds?: number[];
+  investmentTypeId?: number;
   sector?: string;
   minSearchLength?: number;
   maxResults?: number;
@@ -54,7 +54,7 @@ export const StockAutocomplete: React.FC<StockAutocompleteProps> = ({
   isDisabled = false,
   description,
   startContent,
-  investmentTypeIds,
+  investmentTypeId,
   sector,
   minSearchLength = 2,
   maxResults = 50,
@@ -66,43 +66,29 @@ export const StockAutocomplete: React.FC<StockAutocompleteProps> = ({
   const [searchValue, setSearchValue] = useState(initialStockName || "");
   const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
 
-  // Refs for managing debounce and abort controllers
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Update searchValue when initialStockName changes (for edit mode)
   useEffect(() => {
-    if (initialStockName) {
-      setSearchValue(initialStockName);
-    }
+    if (initialStockName) setSearchValue(initialStockName);
   }, [initialStockName]);
 
-  // Debounce search input
+  // Debounce
   useEffect(() => {
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-
-    debounceTimeoutRef.current = setTimeout(() => {
-      setDebouncedSearchValue(searchValue);
-    }, 300); // 300ms debounce delay
-
+    if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+    debounceTimeoutRef.current = setTimeout(
+      () => setDebouncedSearchValue(searchValue),
+      300,
+    );
     return () => {
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
+      if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
     };
   }, [searchValue]);
 
-  // Search stocks based on debounced input
   const searchStocks = useCallback(
     async (searchTerm: string) => {
-      // Abort previous request if still pending
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      if (abortControllerRef.current) abortControllerRef.current.abort();
 
-      // Don't search if term is too short
       if (!searchTerm || searchTerm.length < minSearchLength) {
         setStocks([]);
         setIsLoading(false);
@@ -114,35 +100,24 @@ export const StockAutocomplete: React.FC<StockAutocompleteProps> = ({
         setIsLoading(true);
         setError(null);
 
-        // Create new abort controller for this request
         abortControllerRef.current = new AbortController();
 
-        // Build query parameters
         const params = new URLSearchParams();
         params.append("search", searchTerm);
         params.append("isActive", "true");
         params.append("limit", maxResults.toString());
-
-        if (investmentTypeIds && investmentTypeIds.length > 0) {
-          investmentTypeIds.forEach((id) =>
-            params.append("investmentTypeId", id.toString())
-          );
-        }
-        if (sector) {
-          params.append("sector", sector);
-        }
+        if (investmentTypeId)
+          params.append("investmentTypeId", investmentTypeId.toString());
+        if (sector) params.append("sector", sector);
 
         const response = await axiosInstance.get(
           `/stocks?${params.toString()}`,
           {
             signal: abortControllerRef.current.signal,
-          }
+          },
         );
 
-        // Check if request was aborted
-        if (abortControllerRef.current.signal.aborted) {
-          return;
-        }
+        if (abortControllerRef.current.signal.aborted) return;
 
         if (response.data.success && response.data.data) {
           setStocks(response.data.data);
@@ -151,48 +126,34 @@ export const StockAutocomplete: React.FC<StockAutocompleteProps> = ({
           setStocks([]);
         }
       } catch (err: any) {
-        // Don't set error if request was aborted
-        if (abortControllerRef.current?.signal.aborted) {
-          return;
-        }
-
-        const errorMessage =
+        if (abortControllerRef.current?.signal.aborted) return;
+        setError(
           err?.response?.data?.message ||
-          err?.message ||
-          "Failed to search stocks";
-        setError(errorMessage);
+            err?.message ||
+            "Failed to search stocks",
+        );
         setStocks([]);
       } finally {
-        // Only set loading to false if request wasn't aborted
-        if (!abortControllerRef.current?.signal.aborted) {
-          setIsLoading(false);
-        }
+        if (!abortControllerRef.current?.signal.aborted) setIsLoading(false);
       }
     },
-    [investmentTypeIds, sector, minSearchLength, maxResults]
+    [investmentTypeId, sector, minSearchLength, maxResults],
   );
 
-  // Effect to trigger search when debounced value changes
   useEffect(() => {
     searchStocks(debouncedSearchValue);
-
-    // Cleanup function to abort request on unmount or when dependencies change
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      if (abortControllerRef.current) abortControllerRef.current.abort();
     };
   }, [debouncedSearchValue, searchStocks]);
 
-  // Handle selection change
   const handleSelectionChange = useCallback(
     (key: React.Key | null) => {
       if (key) {
-        const selectedStock = stocks.find((stock) => stock.Id === key);
-        if (selectedStock) {
-          onSelectionChange(selectedStock.Id, selectedStock);
-          // Set the search value to the selected stock name for display
-          setSearchValue(selectedStock.Name);
+        const selected = stocks.find((s) => s.Id.toString() === key);
+        if (selected) {
+          onSelectionChange(selected.Id, selected);
+          setSearchValue(selected.Name);
         } else {
           onSelectionChange(null);
         }
@@ -201,76 +162,60 @@ export const StockAutocomplete: React.FC<StockAutocompleteProps> = ({
         setSearchValue("");
       }
     },
-    [stocks, onSelectionChange]
+    [stocks, onSelectionChange],
   );
 
-  // Handle input value change
   const handleInputChange = useCallback((value: string) => {
     setSearchValue(value);
   }, []);
 
-  // Get display value based on current value prop
   const displayValue = React.useMemo(() => {
     if (value && stocks.length > 0) {
-      const selectedStock = stocks.find((stock) => stock.Id === value);
-      return selectedStock?.Name || searchValue;
+      const selected = stocks.find((s) => s.Id.toString() === value.toString());
+      return selected?.Name || searchValue;
     }
     return searchValue;
   }, [value, stocks, searchValue]);
 
-  // Clean up on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
     };
   }, []);
 
-  // Error display
+  const sharedProps = {
+    name,
+    label,
+    placeholder,
+    variant,
+    size,
+    isRequired,
+    isDisabled,
+    description,
+    startContent: startContent || (
+      <FiDatabase className="w-4 h-4 text-default-400" />
+    ),
+    inputValue: displayValue,
+    onInputChange: handleInputChange,
+  };
+
   if (error && !isLoading && debouncedSearchValue.length >= minSearchLength) {
     return (
-      <div className="space-y-2">
-        <Autocomplete
-          name={name}
-          label={label}
-          placeholder={placeholder}
-          variant={variant}
-          size={size}
-          isRequired={isRequired}
-          isInvalid={true}
-          errorMessage={error}
-          isDisabled={isDisabled}
-          description={description}
-          startContent={
-            startContent || <FiDatabase className="h-4 w-4 text-default-400" />
-          }
-          inputValue={displayValue}
-          onInputChange={handleInputChange}
-          items={[]}
-        >
-          {() => <AutocompleteItem key="empty">No items</AutocompleteItem>}
-        </Autocomplete>
-      </div>
+      <Autocomplete {...sharedProps} isInvalid errorMessage={error} items={[]}>
+        {() => <AutocompleteItem key="empty">No items</AutocompleteItem>}
+      </Autocomplete>
     );
   }
 
   return (
     <Autocomplete
-      name={name}
-      label={label}
-      placeholder={placeholder}
-      variant={variant}
-      size={size}
-      selectedKey={value || null}
+      {...sharedProps}
+      selectedKey={value ? value.toString() : null}
       onSelectionChange={handleSelectionChange}
-      isRequired={isRequired}
       isInvalid={isInvalid}
       errorMessage={errorMessage}
-      isDisabled={isDisabled}
       isLoading={isLoading}
       description={
         description ||
@@ -278,11 +223,6 @@ export const StockAutocomplete: React.FC<StockAutocompleteProps> = ({
           debouncedSearchValue.length < minSearchLength &&
           `Type at least ${minSearchLength} characters to search`)
       }
-      startContent={
-        startContent || <FiDatabase className="h-4 w-4 text-default-400" />
-      }
-      inputValue={displayValue}
-      onInputChange={handleInputChange}
       items={stocks}
       aria-labelledby="stock-autocomplete"
       allowsCustomValue={false}
@@ -291,12 +231,12 @@ export const StockAutocomplete: React.FC<StockAutocompleteProps> = ({
       {(stock) => (
         <AutocompleteItem
           key={stock.Id}
-          textValue={`${stock.Name} (${stock.Symbol || stock.Isin})`}
+          textValue={stock.Name}
           className="py-2"
         >
           <div className="flex flex-col">
             <span className="font-medium text-foreground">{stock.Name}</span>
-            <div className="flex gap-2 text-xs text-default-500">
+            <div className="flex items-center gap-2 text-xs text-default-500">
               {stock.Symbol && <span>Symbol: {stock.Symbol}</span>}
               {stock.Isin && <span>ISIN: {stock.Isin}</span>}
               {stock.Sector && <span>Sector: {stock.Sector}</span>}
