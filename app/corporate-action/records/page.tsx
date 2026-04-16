@@ -39,6 +39,10 @@ import { v4 as uuidv4 } from "uuid";
 import axiosInstance from "@/lib/axios";
 import { formatEpochDate, dateToEpoch } from "@/utils/date";
 import { StockAutocomplete } from "@/components/StockAutocomplete";
+import {
+  CorporateActionTypeSelect,
+  type CorporateActionType,
+} from "@/components/CorporateActionTypeSelect";
 
 interface CorporateActionRecord {
   Id: string;
@@ -46,6 +50,7 @@ interface CorporateActionRecord {
   Isin: string;
   Symbol: string;
   StockName: string;
+  FaceValue: string | null;
   CorporateActionTypeId: number;
   CorporateActionName: string;
   ExDate: number;
@@ -74,13 +79,6 @@ interface CorporateActionDetail {
   IsActive: boolean;
   CreatedOn: number;
   UpdatedOn: number | null;
-}
-
-interface CorporateActionType {
-  Id: number;
-  Code: string;
-  Name: string;
-  IsActive: boolean;
 }
 
 interface NewDetailRow {
@@ -139,11 +137,21 @@ export default function CorporateActionRecordsPage() {
     hasPreviousPage: false,
   });
 
+  // Corporate action type filter state
+  const [corpActionTypeFilter, setCorpActionTypeFilter] = useState<string>("");
+  const [tempCorpActionTypeFilter, setTempCorpActionTypeFilter] =
+    useState<string>("");
+
   // Date range filter states
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [tempStartDate, setTempStartDate] = useState<string>("");
   const [tempEndDate, setTempEndDate] = useState<string>("");
+
+  // Source stock filter state
+  const [filterStockId, setFilterStockId] = useState<string>("");
+  const [tempFilterStockId, setTempFilterStockId] = useState<string>("");
+  const [tempFilterStockName, setTempFilterStockName] = useState<string>("");
 
   // Status filter state ("" = all, "true" = active, "false" = inactive)
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -264,7 +272,15 @@ export default function CorporateActionRecordsPage() {
     if (startDate && endDate) {
       fetchRecords();
     }
-  }, [currentPage, pageSize, startDate, endDate, statusFilter]);
+  }, [
+    currentPage,
+    pageSize,
+    startDate,
+    endDate,
+    statusFilter,
+    corpActionTypeFilter,
+    filterStockId,
+  ]);
 
   const fetchRecords = async () => {
     try {
@@ -283,6 +299,14 @@ export default function CorporateActionRecordsPage() {
       if (endDate) {
         const endEpoch = dateToEpoch(new Date(endDate));
         params.append("endDate", endEpoch.toString());
+      }
+
+      if (corpActionTypeFilter !== "") {
+        params.append("corpActionId", corpActionTypeFilter);
+      }
+
+      if (filterStockId !== "") {
+        params.append("sourceStockId", filterStockId);
       }
 
       if (statusFilter !== "") {
@@ -315,8 +339,10 @@ export default function CorporateActionRecordsPage() {
   };
 
   const handleApplyFilters = () => {
+    setCorpActionTypeFilter(tempCorpActionTypeFilter);
     setStartDate(tempStartDate);
     setEndDate(tempEndDate);
+    setFilterStockId(tempFilterStockId);
     setStatusFilter(tempStatusFilter);
     setCurrentPage(1); // Reset to first page when filters change
   };
@@ -331,10 +357,15 @@ export default function CorporateActionRecordsPage() {
     const defaultStart = twoYearsAgo.toISOString().split("T")[0];
     const defaultEnd = now.toISOString().split("T")[0];
 
+    setTempCorpActionTypeFilter("");
+    setCorpActionTypeFilter("");
     setTempStartDate(defaultStart);
     setTempEndDate(defaultEnd);
     setStartDate(defaultStart);
     setEndDate(defaultEnd);
+    setTempFilterStockId("");
+    setTempFilterStockName("");
+    setFilterStockId("");
     setTempStatusFilter("");
     setStatusFilter("");
     setCurrentPage(1);
@@ -851,68 +882,83 @@ export default function CorporateActionRecordsPage() {
         </div>
 
         {/* Filters */}
-        <div className="mb-6 rounded-lg border border-default-200 bg-default-50 p-4">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-foreground">Filters</h3>
-            <div className="text-sm text-default-500">
-              Showing {records.length} of {pagination.total} records
-            </div>
+        <div className="glass-card rounded-xl mb-6 p-4 space-y-3 border border-default">
+          {/* Row 1: Type + Security Name */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <CorporateActionTypeSelect
+              types={corporateActionTypes}
+              selectedKey={tempCorpActionTypeFilter}
+              onSelectionChange={setTempCorpActionTypeFilter}
+              placeholder="All types"
+            />
+            <StockAutocomplete
+              name="filterStock"
+              label="Security Name"
+              placeholder="Search by name, symbol or ISIN"
+              value={tempFilterStockId}
+              onSelectionChange={(stockId, stock) => {
+                setTempFilterStockId(stockId ?? "");
+                setTempFilterStockName(stock?.Name ?? "");
+              }}
+              initialStockName={tempFilterStockName}
+              investmentTypeIds={CA_INVESTMENT_TYPE_IDS}
+            />
           </div>
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <Input
-                label="Start Date"
-                type="date"
-                value={tempStartDate}
-                onValueChange={setTempStartDate}
-                max={new Date().toISOString().split("T")[0]}
-                size="sm"
-              />
-            </div>
-            <div className="flex-1 min-w-[200px]">
-              <Input
-                label="End Date"
-                type="date"
-                value={tempEndDate}
-                onValueChange={setTempEndDate}
-                max={new Date().toISOString().split("T")[0]}
-                size="sm"
-              />
-            </div>
-            <div className="flex-1 min-w-[150px]">
-              <Select
-                label="Status"
-                placeholder="All"
-                selectedKeys={tempStatusFilter !== "" ? [tempStatusFilter] : []}
-                onSelectionChange={(keys) => {
-                  const val = (Array.from(keys)[0] as string) ?? "";
-                  setTempStatusFilter(val);
-                }}
-                size="sm"
-              >
-                <SelectItem key="true">Active</SelectItem>
-                <SelectItem key="false">Inactive</SelectItem>
-              </Select>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                color="primary"
-                startContent={<FiSearch />}
-                onPress={handleApplyFilters}
-                size="sm"
-              >
-                Apply
-              </Button>
+
+          {/* Row 2: Date range + Status + actions */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
+            <Input
+              label="Start Date"
+              type="date"
+              value={tempStartDate}
+              onValueChange={setTempStartDate}
+              max={new Date().toISOString().split("T")[0]}
+            />
+            <Input
+              label="End Date"
+              type="date"
+              value={tempEndDate}
+              onValueChange={setTempEndDate}
+              max={new Date().toISOString().split("T")[0]}
+            />
+            <Select
+              label="Status"
+              placeholder="All"
+              selectedKeys={tempStatusFilter !== "" ? [tempStatusFilter] : []}
+              onSelectionChange={(keys) => {
+                const val = (Array.from(keys)[0] as string) ?? "";
+                setTempStatusFilter(val);
+              }}
+            >
+              <SelectItem key="true">Active</SelectItem>
+              <SelectItem key="false">Inactive</SelectItem>
+            </Select>
+            <div className="flex items-end justify-between gap-2 sm:justify-start">
               <Button
                 variant="flat"
                 startContent={<FiX />}
                 onPress={handleClearFilters}
-                size="sm"
               >
                 Clear
               </Button>
+              <Button
+                color="primary"
+                startContent={<FiSearch />}
+                onPress={handleApplyFilters}
+              >
+                Apply Filters
+              </Button>
             </div>
           </div>
+
+          {/* Record count */}
+          <p className="text-sm text-default-500">
+            Showing{" "}
+            <span className="font-medium text-foreground">
+              {pagination.total}
+            </span>{" "}
+            records
+          </p>
         </div>
 
         {/* Records Table */}
@@ -934,7 +980,6 @@ export default function CorporateActionRecordsPage() {
             <TableColumn>ACTION TYPE</TableColumn>
             <TableColumn>EX DATE</TableColumn>
             <TableColumn>RECORD DATE</TableColumn>
-            <TableColumn>ALLOTMENT DATE</TableColumn>
             <TableColumn>STATUS</TableColumn>
             <TableColumn>ACTIONS</TableColumn>
           </TableHeader>
@@ -943,7 +988,17 @@ export default function CorporateActionRecordsPage() {
               <TableRow key={record.Id}>
                 <TableCell>{record.Isin}</TableCell>
                 <TableCell>{record.Symbol}</TableCell>
-                <TableCell>{record.StockName}</TableCell>
+                <TableCell>
+                  <div>
+                    <span>{record.StockName}</span>
+                    {record.FaceValue && (
+                      <>
+                        <span> - </span>
+                        <span>FV({parseFloat(record.FaceValue)})</span>
+                      </>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell>
                   <Chip size="sm" variant="dot" color="primary">
                     {record.CorporateActionName}
@@ -951,7 +1006,6 @@ export default function CorporateActionRecordsPage() {
                 </TableCell>
                 <TableCell>{formatEpochDate(record.ExDate)}</TableCell>
                 <TableCell>{formatEpochDate(record.RecordDate)}</TableCell>
-                <TableCell>{formatEpochDate(record.AllotmentDate)}</TableCell>
                 <TableCell>
                   <Chip
                     color={record.IsActive ? "success" : "default"}
@@ -1047,8 +1101,10 @@ export default function CorporateActionRecordsPage() {
               <div className="text-lg font-bold">Corporate Action Details</div>
               {selectedRecord && (
                 <div className="text-sm font-normal text-default-500">
-                  {selectedRecord.Symbol} - {selectedRecord.StockName} (
-                  {selectedRecord.CorporateActionName})
+                  {selectedRecord.Symbol} - {selectedRecord.StockName}
+                  {selectedRecord.FaceValue &&
+                    ` FV(${parseFloat(selectedRecord.FaceValue)})`}{" "}
+                  ({selectedRecord.CorporateActionName})
                 </div>
               )}
             </ModalHeader>
@@ -1277,6 +1333,18 @@ export default function CorporateActionRecordsPage() {
             <ModalBody>
               {editingRecord && (
                 <div className="space-y-4">
+                  <CorporateActionTypeSelect
+                    types={corporateActionTypes}
+                    selectedKey={editingRecord.CorporateActionTypeId.toString()}
+                    onSelectionChange={(value) =>
+                      setEditingRecord({
+                        ...editingRecord,
+                        CorporateActionTypeId: parseInt(value),
+                      })
+                    }
+                    isRequired
+                  />
+
                   <StockAutocomplete
                     name="sourceStock"
                     label="Source Stock"
@@ -1292,104 +1360,73 @@ export default function CorporateActionRecordsPage() {
                       }
                     }}
                     initialStockName={initialStockName}
+                    investmentTypeIds={CA_INVESTMENT_TYPE_IDS}
                     isRequired
                   />
 
-                  <Select
-                    label="Corporate Action Type"
-                    selectedKeys={[
-                      editingRecord.CorporateActionTypeId.toString(),
-                    ]}
-                    onSelectionChange={(keys) => {
-                      const value = Array.from(keys)[0] as string;
-                      setEditingRecord({
-                        ...editingRecord,
-                        CorporateActionTypeId: parseInt(value),
-                      });
-                    }}
-                    isRequired
-                  >
-                    {corporateActionTypes.map((type) => (
-                      <SelectItem
-                        key={type.Id.toString()}
-                        textValue={`${type.Code} - ${type.Name}`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Chip
-                            size="sm"
-                            variant="dot"
-                            color="primary"
-                            className="shrink-0"
-                          >
-                            {type.Code}
-                          </Chip>
-                          <span>{type.Name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </Select>
+                  <div className="grid sm:grid-cols-3 gap-4">
+                    <Input
+                      label="Ex Date"
+                      type="date"
+                      value={
+                        editingRecord.ExDate
+                          ? new Date(editingRecord.ExDate * 1000)
+                              .toISOString()
+                              .split("T")[0]
+                          : ""
+                      }
+                      onValueChange={(value) => {
+                        const date = new Date(value);
+                        setEditingRecord({
+                          ...editingRecord,
+                          ExDate: dateToEpoch(date),
+                        });
+                      }}
+                      isRequired
+                    />
 
-                  <Input
-                    label="Ex Date"
-                    type="date"
-                    value={
-                      editingRecord.ExDate
-                        ? new Date(editingRecord.ExDate * 1000)
-                            .toISOString()
-                            .split("T")[0]
-                        : ""
-                    }
-                    onValueChange={(value) => {
-                      const date = new Date(value);
-                      setEditingRecord({
-                        ...editingRecord,
-                        ExDate: dateToEpoch(date),
-                      });
-                    }}
-                    isRequired
-                  />
+                    <Input
+                      label="Record Date"
+                      type="date"
+                      value={
+                        editingRecord.RecordDate
+                          ? new Date(editingRecord.RecordDate * 1000)
+                              .toISOString()
+                              .split("T")[0]
+                          : ""
+                      }
+                      onValueChange={(value) => {
+                        const date = new Date(value);
+                        const nextDay = new Date(value);
+                        nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+                        setEditingRecord({
+                          ...editingRecord,
+                          RecordDate: dateToEpoch(date),
+                          AllotmentDate: dateToEpoch(nextDay),
+                        });
+                      }}
+                      isRequired
+                    />
 
-                  <Input
-                    label="Record Date"
-                    type="date"
-                    value={
-                      editingRecord.RecordDate
-                        ? new Date(editingRecord.RecordDate * 1000)
-                            .toISOString()
-                            .split("T")[0]
-                        : ""
-                    }
-                    onValueChange={(value) => {
-                      const date = new Date(value);
-                      const nextDay = new Date(value);
-                      nextDay.setUTCDate(nextDay.getUTCDate() + 1);
-                      setEditingRecord({
-                        ...editingRecord,
-                        RecordDate: dateToEpoch(date),
-                        AllotmentDate: dateToEpoch(nextDay),
-                      });
-                    }}
-                    isRequired
-                  />
-
-                  <Input
-                    label="Allotment Date"
-                    type="date"
-                    value={
-                      editingRecord.AllotmentDate
-                        ? new Date(editingRecord.AllotmentDate * 1000)
-                            .toISOString()
-                            .split("T")[0]
-                        : ""
-                    }
-                    onValueChange={(value) => {
-                      const date = value ? new Date(value) : null;
-                      setEditingRecord({
-                        ...editingRecord,
-                        AllotmentDate: date ? dateToEpoch(date) : null,
-                      });
-                    }}
-                  />
+                    <Input
+                      label="Allotment Date"
+                      type="date"
+                      value={
+                        editingRecord.AllotmentDate
+                          ? new Date(editingRecord.AllotmentDate * 1000)
+                              .toISOString()
+                              .split("T")[0]
+                          : ""
+                      }
+                      onValueChange={(value) => {
+                        const date = value ? new Date(value) : null;
+                        setEditingRecord({
+                          ...editingRecord,
+                          AllotmentDate: date ? dateToEpoch(date) : null,
+                        });
+                      }}
+                    />
+                  </div>
 
                   <Textarea
                     label="Remark"
@@ -1461,6 +1498,7 @@ export default function CorporateActionRecordsPage() {
                       }
                     }}
                     initialStockName={initialTargetStockName}
+                    investmentTypeIds={CA_INVESTMENT_TYPE_IDS}
                     isRequired
                   />
 
@@ -1616,6 +1654,7 @@ export default function CorporateActionRecordsPage() {
                     }
                   }}
                   initialStockName={initialTargetStockName}
+                  investmentTypeIds={CA_INVESTMENT_TYPE_IDS}
                   isRequired
                 />
 
@@ -1738,6 +1777,23 @@ export default function CorporateActionRecordsPage() {
               <div className="space-y-6">
                 {/* Record Information */}
                 <div className="space-y-4">
+                  <CorporateActionTypeSelect
+                    types={corporateActionTypes}
+                    selectedKey={
+                      newAction.corpActionTypeId
+                        ? newAction.corpActionTypeId.toString()
+                        : ""
+                    }
+                    onSelectionChange={(value) =>
+                      setNewAction({
+                        ...newAction,
+                        corpActionTypeId: parseInt(value),
+                      })
+                    }
+                    placeholder="Select corporate action type"
+                    isRequired
+                  />
+
                   <StockAutocomplete
                     name="sourceStock"
                     label="Source Stock"
@@ -1753,47 +1809,11 @@ export default function CorporateActionRecordsPage() {
                       }
                     }}
                     initialStockName={initialStockName}
+                    investmentTypeIds={CA_INVESTMENT_TYPE_IDS}
                     isRequired
                   />
 
-                  <Select
-                    label="Corporate Action Type"
-                    placeholder="Select corporate action type"
-                    selectedKeys={
-                      newAction.corpActionTypeId
-                        ? [newAction.corpActionTypeId.toString()]
-                        : []
-                    }
-                    onSelectionChange={(keys) => {
-                      const value = Array.from(keys)[0] as string;
-                      setNewAction({
-                        ...newAction,
-                        corpActionTypeId: parseInt(value),
-                      });
-                    }}
-                    isRequired
-                  >
-                    {corporateActionTypes.map((type) => (
-                      <SelectItem
-                        key={type.Id.toString()}
-                        textValue={`${type.Code} - ${type.Name}`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Chip
-                            size="sm"
-                            variant="dot"
-                            color="primary"
-                            className="shrink-0"
-                          >
-                            {type.Code}
-                          </Chip>
-                          <span>{type.Name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </Select>
-
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid sm:grid-cols-3 gap-4">
                     <Input
                       label="Ex Date"
                       type="date"
@@ -1897,6 +1917,7 @@ export default function CorporateActionRecordsPage() {
                             name={`targetStock-${detail.tempId}`}
                             label="Target Stock"
                             placeholder="Search by stock name, symbol, ISIN, or BSE code"
+                            investmentTypeIds={CA_INVESTMENT_TYPE_IDS}
                             value={detail.targetStockId || ""}
                             onSelectionChange={(stockId, stock) => {
                               if (stock) {

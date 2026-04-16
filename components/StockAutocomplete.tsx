@@ -17,7 +17,13 @@ export interface Stock {
   Industry: string | null;
   Listed: boolean;
   Status: string | null;
+  FaceValue?: number | null;
 }
+
+const formatStockLabel = (stock: Stock): string =>
+  stock.FaceValue
+    ? `${stock.Name} - FV(${parseFloat(stock.FaceValue.toString())})`
+    : stock.Name;
 
 interface StockAutocompleteProps {
   name: string;
@@ -33,7 +39,7 @@ interface StockAutocompleteProps {
   isDisabled?: boolean;
   description?: string;
   startContent?: React.ReactNode;
-  investmentTypeId?: number;
+  investmentTypeIds?: number[];
   sector?: string;
   minSearchLength?: number;
   maxResults?: number;
@@ -54,7 +60,7 @@ export const StockAutocomplete: React.FC<StockAutocompleteProps> = ({
   isDisabled = false,
   description,
   startContent,
-  investmentTypeId,
+  investmentTypeIds,
   sector,
   minSearchLength = 2,
   maxResults = 50,
@@ -63,27 +69,31 @@ export const StockAutocomplete: React.FC<StockAutocompleteProps> = ({
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchValue, setSearchValue] = useState(initialStockName || "");
+  const [searchValue, setSearchValue] = useState(initialStockName || ""); // display value in input
+  const [searchQuery, setSearchQuery] = useState(initialStockName || ""); // actual API search term
   const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
 
   const debounceTimeoutRef = useRef<NodeJS.Timeout>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (initialStockName) setSearchValue(initialStockName);
+    if (initialStockName) {
+      setSearchValue(initialStockName);
+      setSearchQuery(initialStockName);
+    }
   }, [initialStockName]);
 
-  // Debounce
+  // Debounce the search query (not the display value)
   useEffect(() => {
     if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
     debounceTimeoutRef.current = setTimeout(
-      () => setDebouncedSearchValue(searchValue),
+      () => setDebouncedSearchValue(searchQuery),
       300,
     );
     return () => {
       if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
     };
-  }, [searchValue]);
+  }, [searchQuery]);
 
   const searchStocks = useCallback(
     async (searchTerm: string) => {
@@ -106,8 +116,9 @@ export const StockAutocomplete: React.FC<StockAutocompleteProps> = ({
         params.append("search", searchTerm);
         params.append("isActive", "true");
         params.append("limit", maxResults.toString());
-        if (investmentTypeId)
-          params.append("investmentTypeId", investmentTypeId.toString());
+        investmentTypeIds?.forEach((id) =>
+          params.append("investmentTypeId", id.toString()),
+        );
         if (sector) params.append("sector", sector);
 
         const response = await axiosInstance.get(
@@ -137,7 +148,7 @@ export const StockAutocomplete: React.FC<StockAutocompleteProps> = ({
         if (!abortControllerRef.current?.signal.aborted) setIsLoading(false);
       }
     },
-    [investmentTypeId, sector, minSearchLength, maxResults],
+    [investmentTypeIds, sector, minSearchLength, maxResults],
   );
 
   useEffect(() => {
@@ -153,13 +164,15 @@ export const StockAutocomplete: React.FC<StockAutocompleteProps> = ({
         const selected = stocks.find((s) => s.Id.toString() === key);
         if (selected) {
           onSelectionChange(selected.Id, selected);
-          setSearchValue(selected.Name);
+          setSearchValue(formatStockLabel(selected)); // display: "Name - FV(10)"
+          setSearchQuery(selected.Name);              // search: plain name only
         } else {
           onSelectionChange(null);
         }
       } else {
         onSelectionChange(null);
         setSearchValue("");
+        setSearchQuery("");
       }
     },
     [stocks, onSelectionChange],
@@ -167,12 +180,13 @@ export const StockAutocomplete: React.FC<StockAutocompleteProps> = ({
 
   const handleInputChange = useCallback((value: string) => {
     setSearchValue(value);
+    setSearchQuery(value); // user is typing — display and search stay in sync
   }, []);
 
   const displayValue = React.useMemo(() => {
     if (value && stocks.length > 0) {
       const selected = stocks.find((s) => s.Id.toString() === value.toString());
-      return selected?.Name || searchValue;
+      return selected ? formatStockLabel(selected) : searchValue;
     }
     return searchValue;
   }, [value, stocks, searchValue]);
@@ -235,7 +249,15 @@ export const StockAutocomplete: React.FC<StockAutocompleteProps> = ({
           className="py-2"
         >
           <div className="flex flex-col">
-            <span className="font-medium text-foreground">{stock.Name}</span>
+            <span className="font-medium text-foreground">
+              {stock.Name}
+              {stock.FaceValue && (
+                <>
+                  <span> - </span>
+                  <span>FV({parseFloat(stock.FaceValue.toString())})</span>
+                </>
+              )}
+            </span>
             <div className="flex items-center gap-2 text-xs text-default-500">
               {stock.Symbol && <span>Symbol: {stock.Symbol}</span>}
               {stock.Isin && <span>ISIN: {stock.Isin}</span>}
