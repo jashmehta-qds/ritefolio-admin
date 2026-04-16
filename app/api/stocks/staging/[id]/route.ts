@@ -109,6 +109,7 @@ export async function PUT(
       basicIndustry,
       sectoralIndex,
       slb,
+      isListed,
       isActive,
     } = body;
 
@@ -122,7 +123,7 @@ export async function PUT(
         isin || null,
         stockName || null,
         faceValue || null,
-        false, // p_is_listed = false for staging stocks
+        isListed ?? false, // p_is_listed
         symbol || null,
         bseCode || null,
         null, // macroSector

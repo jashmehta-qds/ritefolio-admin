@@ -36,7 +36,7 @@ interface Stock {
   UpdatedOn?: number;
 }
 
-// GET: Fetch all unlisted stocks using FetchUnlistedStocks function with pagination
+// GET: Fetch all unlisted stocks using FetchStocks function with p_is_listed = false
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -44,13 +44,10 @@ export async function GET(request: NextRequest) {
     const isin = searchParams.get("isin") || null;
     const stockName = searchParams.get("stockName") || null;
     const bseCode = searchParams.get("bseCode") || null;
-    const investmentType = (() => {
-      const ids = searchParams
-        .getAll("investmentType")
-        .map(Number)
-        .filter((n) => !isNaN(n));
-      return ids.length > 0 ? ids[0] : null;
-    })();
+    const investmentTypeIds = searchParams
+      .getAll("investmentType")
+      .map(Number)
+      .filter((n) => !isNaN(n));
     const countryId = searchParams.get("countryId")
       ? parseInt(searchParams.get("countryId")!)
       : null;
@@ -69,15 +66,16 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
 
     const stocks = await callFunction<Stock>({
-      functionName: 'public."FetchUnlistedStocks"',
+      functionName: 'ritefolio."FetchStocks"',
       dbName: process.env.PG_DEFAULT_DB,
       params: [
         symbol,
         isin,
         stockName,
         bseCode,
-        investmentType,
+        investmentTypeIds.length > 0 ? investmentTypeIds : null,
         countryId,
+        false, // p_is_listed = false for unlisted stocks
         isActive,
         null, // p_stock_id
         null, // p_parent_stock_id
@@ -111,35 +109,84 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: Add a new unlisted stock using InsertStockStaging procedure
+// POST: Add a new unlisted stock using InsertStockStaging_v1 procedure
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { countryId, isin, stockName, symbol, bseCode } = body;
+    const {
+      countryId,
+      investmentType,
+      isin,
+      stockName,
+      faceValue,
+      symbol,
+      bseCode,
+      macroSector,
+      sector,
+      industry,
+      basicIndustry,
+      sectoralIndex,
+      slb,
+      listingDate,
+      recordDate,
+      issueDate,
+      maturityDate,
+      ipoDate,
+      broadIndustry,
+      series,
+      issuer,
+      couponRate,
+      couponFrequency,
+      status,
+      description,
+      schemeName,
+      parentStockId,
+    } = body;
 
-    // Validate that at least one identifier is provided
-    if (!symbol && !isin && !bseCode && !stockName) {
+    if (!countryId || !investmentType || !stockName || !faceValue || (!isin && !symbol)) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "At least one of symbol, ISIN, BSE code, or stock name must be provided",
+          error: "Missing required fields",
         },
         { status: 400 },
       );
     }
 
     await callProcedure({
-      procedureName: 'public."InsertStockStaging"',
+      procedureName: 'public."InsertStockStaging_v1"',
       dbName: process.env.PG_DEFAULT_DB,
       params: [
-        null, // OUT v_stock_id UUID
-        symbol || null,
-        isin || null,
-        bseCode || null,
-        stockName || null,
-        countryId ? parseInt(countryId) : null,
-        null, // p_created_by UUID
+        null,               // OUT v_stock_id UUID
+        symbol || null,     // p_symbol
+        isin || null,       // p_isin
+        bseCode || null,    // p_bse_code
+        stockName,          // p_stock_name
+        countryId,          // p_country_id
+        null,               // p_created_by UUID
+        investmentType,     // p_investment_type_id
+        faceValue,          // p_face_value
+        false,              // p_listed = false for unlisted stocks
+        macroSector || null,    // p_macro_sector
+        sector || null,         // p_sector
+        industry || null,       // p_industry
+        basicIndustry || null,  // p_basic_industry
+        sectoralIndex || null,  // p_sectoral_index
+        slb || false,           // p_slb
+        listingDate || null,    // p_listing_date
+        recordDate || null,     // p_record_date
+        issueDate || null,      // p_issue_date
+        maturityDate || null,   // p_maturity_date
+        ipoDate || null,        // p_ipo_date
+        broadIndustry || null,  // p_broad_industry
+        series || null,         // p_series
+        issuer || null,         // p_issuer
+        couponRate || null,     // p_coupon_rate
+        couponFrequency || null, // p_coupon_frequency
+        status || null,         // p_status
+        description || null,    // p_description
+        schemeName || null,     // p_scheme_name
+        parentStockId || null,  // p_parent_stock_id
       ],
     });
 

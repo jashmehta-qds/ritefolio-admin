@@ -35,10 +35,13 @@ import {
   FiCheck,
   FiEdit2,
   FiArrowRight,
+  FiChevronRight,
+  FiChevronLeft,
 } from "react-icons/fi";
 import { createClient } from "@/lib/supabase/client";
 import axiosInstance from "@/lib/axios";
 import StockTypeAutocomplete from "@/components/StockTypeAutocomplete";
+import { CountryAutocomplete } from "@/components/CountryAutocomplete";
 
 interface Stock {
   Id: string;
@@ -72,6 +75,55 @@ interface InvestmentType {
   IsActive: boolean;
 }
 
+const ADD_STEPS = ["Identifiers", "Details"];
+
+function StepIndicator({ currentStep }: { currentStep: number }) {
+  return (
+    <div className="flex items-center w-full">
+      {ADD_STEPS.map((label, index) => {
+        const num = index + 1;
+        const done = num < currentStep;
+        const active = num === currentStep;
+        return (
+          <div key={num} className="flex items-center flex-1 last:flex-none">
+            <div className="flex flex-col items-center gap-1">
+              <div
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all ${
+                  done
+                    ? "bg-primary text-primary-foreground"
+                    : active
+                      ? "bg-primary text-primary-foreground ring-2 ring-primary/30 ring-offset-1"
+                      : "bg-default-100 text-default-400"
+                }`}
+              >
+                {done ? <FiCheck className="w-3.5 h-3.5" /> : num}
+              </div>
+              <span
+                className={`text-xs font-medium whitespace-nowrap ${
+                  active
+                    ? "text-primary"
+                    : done
+                      ? "text-default-600"
+                      : "text-default-400"
+                }`}
+              >
+                {label}
+              </span>
+            </div>
+            {index < ADD_STEPS.length - 1 && (
+              <div
+                className={`flex-1 h-px mx-2 mb-5 transition-colors ${
+                  num < currentStep ? "bg-primary" : "bg-default-200"
+                }`}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function StagingStocksPage() {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
@@ -89,7 +141,9 @@ export default function StagingStocksPage() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCountryId, setFilterCountryId] = useState<string>("");
-  const [filterInvestmentTypes, setFilterInvestmentTypes] = useState<string[]>([]);
+  const [filterInvestmentTypes, setFilterInvestmentTypes] = useState<string[]>(
+    [],
+  );
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [toast, setToast] = useState<{
@@ -99,6 +153,16 @@ export default function StagingStocksPage() {
   const router = useRouter();
   const supabase = createClient();
 
+  // Add stock stepper state
+  const [addStep, setAddStep] = useState(1);
+  const [stepErrors, setStepErrors] = useState<Record<string, string>>({});
+
+  // Edit stock stepper state
+  const [editStep, setEditStep] = useState(1);
+  const [editStepErrors, setEditStepErrors] = useState<Record<string, string>>(
+    {},
+  );
+
   // Form state
   const [formData, setFormData] = useState({
     symbol: "",
@@ -107,6 +171,7 @@ export default function StagingStocksPage() {
     stockName: "",
     countryId: "",
     investmentType: "",
+    isListed: false,
   });
 
   // Show toast notification
@@ -145,7 +210,12 @@ export default function StagingStocksPage() {
 
   // Fetch stocks when page changes
   useEffect(() => {
-    fetchStocks(currentPage, searchTerm, filterCountryId, filterInvestmentTypes);
+    fetchStocks(
+      currentPage,
+      searchTerm,
+      filterCountryId,
+      filterInvestmentTypes,
+    );
   }, [currentPage]);
 
   // Fetch stocks when filters change
@@ -158,17 +228,15 @@ export default function StagingStocksPage() {
     page: number = 1,
     search: string = "",
     countryId: string = "",
-    investmentTypes: string[] = []
+    investmentTypes: string[] = [],
   ) => {
     try {
       setIsLoading(true);
 
-      // Build query params
       const params = new URLSearchParams();
       params.append("page", page.toString());
       params.append("limit", "50");
 
-      // Send search term to all searchable fields (OR logic in SQL)
       if (search.trim()) {
         params.append("symbol", search);
         params.append("isin", search);
@@ -180,7 +248,7 @@ export default function StagingStocksPage() {
       investmentTypes.forEach((id) => params.append("investmentType", id));
 
       const response = await axiosInstance.get(
-        `/stocks/staging?${params.toString()}`
+        `/stocks/staging?${params.toString()}`,
       );
       const result = response.data;
 
@@ -221,9 +289,60 @@ export default function StagingStocksPage() {
     }
   };
 
+  const validateStep = (step: number): boolean => {
+    const errors: Record<string, string> = {};
+    if (step === 1) {
+      if (
+        !formData.symbol.trim() &&
+        !formData.isin.trim() &&
+        !formData.bseCode.trim() &&
+        !formData.stockName.trim()
+      ) {
+        errors.symbol =
+          "At least one of symbol, ISIN, BSE code, or stock name is required";
+      }
+    }
+    setStepErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleNext = () => {
+    if (validateStep(addStep)) setAddStep((s) => s + 1);
+  };
+
+  const handleBack = () => {
+    setStepErrors({});
+    setAddStep((s) => s - 1);
+  };
+
+  const validateEditStep = (step: number): boolean => {
+    const errors: Record<string, string> = {};
+    if (step === 1 && editingStock) {
+      if (
+        !editingStock.Symbol?.trim() &&
+        !editingStock.Isin?.trim() &&
+        !editingStock.BseCode?.trim() &&
+        !editingStock.Name?.trim()
+      ) {
+        errors.symbol =
+          "At least one of symbol, ISIN, BSE code, or stock name is required";
+      }
+    }
+    setEditStepErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleEditNext = () => {
+    if (validateEditStep(editStep)) setEditStep((s) => s + 1);
+  };
+
+  const handleEditBack = () => {
+    setEditStepErrors({});
+    setEditStep((s) => s - 1);
+  };
+
   const handleAddStock = async () => {
     try {
-      // Get user ID from Supabase
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -241,7 +360,7 @@ export default function StagingStocksPage() {
       } else {
         showToast(
           result.message || result.error || "Failed to add stock",
-          "error"
+          "error",
         );
       }
     } catch (error) {
@@ -252,6 +371,8 @@ export default function StagingStocksPage() {
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
+    setAddStep(1);
+    setStepErrors({});
     setFormData({
       symbol: "",
       isin: "",
@@ -259,6 +380,7 @@ export default function StagingStocksPage() {
       stockName: "",
       countryId: "",
       investmentType: "",
+      isListed: false,
     });
   };
 
@@ -279,6 +401,8 @@ export default function StagingStocksPage() {
 
   const handleEditStock = (stock: Stock) => {
     setEditingStock({ ...stock });
+    setEditStep(1);
+    setEditStepErrors({});
     setIsEditModalOpen(true);
   };
 
@@ -301,21 +425,29 @@ export default function StagingStocksPage() {
           basicIndustry: editingStock.BasicIndustry,
           sectoralIndex: editingStock.SectoralIndex,
           slb: editingStock.Slb,
+          isListed: editingStock.Listed,
           isActive: editingStock.IsActive,
-        }
+        },
       );
 
       if (response.data.success) {
         showToast("Stock updated successfully", "success");
         setIsEditModalOpen(false);
         setEditingStock(null);
-        await fetchStocks(currentPage, searchTerm);
+        setEditStep(1);
+        setEditStepErrors({});
+        await fetchStocks(
+          currentPage,
+          searchTerm,
+          filterCountryId,
+          filterInvestmentTypes,
+        );
       } else {
         showToast(
           response.data.message ||
             response.data.error ||
             "Failed to update stock",
-          "error"
+          "error",
         );
       }
     } catch (error) {
@@ -338,23 +470,25 @@ export default function StagingStocksPage() {
       setIsMigrating(true);
 
       const response = await axiosInstance.post(
-        `/stocks/staging/${migratingStock.Id}/migrate`
+        `/stocks/staging/${migratingStock.Id}/migrate`,
       );
 
       if (response.data.success) {
-        showToast(
-          "Stock migrated to listed stocks successfully",
-          "success"
-        );
+        showToast("Stock migrated to listed stocks successfully", "success");
         setIsMigrateModalOpen(false);
         setMigratingStock(null);
-        await fetchStocks(currentPage, searchTerm);
+        await fetchStocks(
+          currentPage,
+          searchTerm,
+          filterCountryId,
+          filterInvestmentTypes,
+        );
       } else {
         showToast(
           response.data.message ||
             response.data.error ||
             "Failed to migrate stock",
-          "error"
+          "error",
         );
       }
     } catch (error) {
@@ -411,7 +545,7 @@ export default function StagingStocksPage() {
             placeholder="Filter by country"
             selectedKey={filterCountryId || null}
             onSelectionChange={(key) =>
-              setFilterCountryId(key as string || "")
+              setFilterCountryId((key as string) || "")
             }
             className="max-w-[200px]"
             size="md"
@@ -434,7 +568,10 @@ export default function StagingStocksPage() {
             size="md"
           >
             {investmentTypes.map((type) => (
-              <SelectItem key={type.Id.toString()} textValue={`${type.ShortCode} - ${type.InvestmentCategory}`}>
+              <SelectItem
+                key={type.Id.toString()}
+                textValue={`${type.ShortCode} - ${type.InvestmentCategory}`}
+              >
                 {type.ShortCode} - {type.InvestmentCategory}
               </SelectItem>
             ))}
@@ -454,88 +591,79 @@ export default function StagingStocksPage() {
         </div>
 
         {/* Stocks Table */}
-        <Table aria-label="Staging stocks table" isHeaderSticky
+        <Table
+          aria-label="Staging stocks table"
+          isHeaderSticky
           className="glass-card rounded-xl shadow-lg overflow-hidden"
           classNames={{
             wrapper: "max-h-[calc(100vh-250px)] p-0",
             base: "p-0",
             th: "text-xs sm:text-sm",
             td: "text-xs sm:text-sm py-2",
-          }}>
-            <TableHeader>
-              <TableColumn>SYMBOL</TableColumn>
-              <TableColumn>NAME</TableColumn>
-              <TableColumn>ISIN</TableColumn>
-              <TableColumn>BSE CODE</TableColumn>
-              <TableColumn>FACE VALUE</TableColumn>
-              <TableColumn>STATUS</TableColumn>
-              <TableColumn>ACTION</TableColumn>
-            </TableHeader>
-            <TableBody
-              emptyContent={isLoading ? "Loading..." : "No stocks found"}
-              isLoading={isLoading}
-            >
-              {stocks.map((stock) => (
-                <TableRow key={stock.Id}>
-                  <TableCell className="font-semibold">
-                    {stock.Symbol || "-"}
-                  </TableCell>
-                  <TableCell>{stock.Name || "-"}</TableCell>
-                  <TableCell>{stock.Isin || "-"}</TableCell>
-                  <TableCell>{stock.BseCode || "-"}</TableCell>
-                  <TableCell>
-                    {stock.FaceValue ? stock.FaceValue : "-"}
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      color={stock.IsActive ? "warning" : "default"}
-                      size="sm"
-                      variant="flat"
-                    >
-                      {stock.IsActive ? "Staging" : "Inactive"}
-                    </Chip>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Tooltip content="View details">
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="light"
-                          onPress={() => handleViewDetails(stock)}
-                          aria-label="View details"
-                        >
-                          <FiEye className="text-lg" />
-                        </Button>
-                      </Tooltip>
-                      <Tooltip content="Edit stock">
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="light"
-                          onPress={() => handleEditStock(stock)}
-                          aria-label="Edit stock"
-                        >
-                          <FiEdit2 className="text-lg" />
-                        </Button>
-                      </Tooltip>
-                      <Tooltip content="Migrate to listed stocks">
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="light"
-                          color="success"
-                          onPress={() => handleMigrateStock(stock)}
-                          aria-label="Migrate to listed stocks"
-                        >
-                          <FiArrowRight className="text-lg" />
-                        </Button>
-                      </Tooltip>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
+          }}
+        >
+          <TableHeader>
+            <TableColumn>SYMBOL</TableColumn>
+            <TableColumn>NAME</TableColumn>
+            <TableColumn>ISIN</TableColumn>
+            <TableColumn>BSE CODE</TableColumn>
+            <TableColumn>FACE VALUE</TableColumn>
+            <TableColumn>ACTION</TableColumn>
+          </TableHeader>
+          <TableBody
+            emptyContent={isLoading ? "Loading..." : "No stocks found"}
+            isLoading={isLoading}
+          >
+            {stocks.map((stock) => (
+              <TableRow key={stock.Id}>
+                <TableCell className="font-semibold">
+                  {stock.Symbol || "-"}
+                </TableCell>
+                <TableCell>{stock.Name || "-"}</TableCell>
+                <TableCell>{stock.Isin || "-"}</TableCell>
+                <TableCell>{stock.BseCode || "-"}</TableCell>
+                <TableCell>{stock.FaceValue ?? "-"}</TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Tooltip content="View details">
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="light"
+                        onPress={() => handleViewDetails(stock)}
+                        aria-label="View details"
+                      >
+                        <FiEye className="text-lg" />
+                      </Button>
+                    </Tooltip>
+                    <Tooltip content="Edit stock">
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="light"
+                        onPress={() => handleEditStock(stock)}
+                        aria-label="Edit stock"
+                      >
+                        <FiEdit2 className="text-lg" />
+                      </Button>
+                    </Tooltip>
+                    <Tooltip content="Migrate to listed stocks">
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="light"
+                        color="success"
+                        onPress={() => handleMigrateStock(stock)}
+                        aria-label="Migrate to listed stocks"
+                      >
+                        <FiArrowRight className="text-lg" />
+                      </Button>
+                    </Tooltip>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
         </Table>
 
         {/* Pagination */}
@@ -595,7 +723,6 @@ export default function StagingStocksPage() {
                       defaultExpandedKeys={["basic"]}
                       className="gap-2"
                     >
-                      {/* Basic Information */}
                       <AccordionItem
                         key="basic"
                         aria-label="Basic Information"
@@ -604,9 +731,7 @@ export default function StagingStocksPage() {
                             Basic Information
                           </span>
                         }
-                        classNames={{
-                          content: "pb-4 pt-2",
-                        }}
+                        classNames={{ content: "pb-4 pt-2" }}
                       >
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-1 sm:px-3">
                           {selectedStock.Symbol && (
@@ -630,7 +755,7 @@ export default function StagingStocksPage() {
                                     onPress={() =>
                                       handleCopyToClipboard(
                                         selectedStock.Symbol!,
-                                        "symbol"
+                                        "symbol",
                                       )
                                     }
                                   >
@@ -644,7 +769,6 @@ export default function StagingStocksPage() {
                               </div>
                             </div>
                           )}
-
                           {selectedStock.Isin && (
                             <div className="space-y-1">
                               <p className="text-xs text-default-500">ISIN</p>
@@ -664,7 +788,7 @@ export default function StagingStocksPage() {
                                     onPress={() =>
                                       handleCopyToClipboard(
                                         selectedStock.Isin!,
-                                        "isin"
+                                        "isin",
                                       )
                                     }
                                   >
@@ -678,7 +802,6 @@ export default function StagingStocksPage() {
                               </div>
                             </div>
                           )}
-
                           {selectedStock.BseCode && (
                             <div className="space-y-1">
                               <p className="text-xs text-default-500">
@@ -702,7 +825,7 @@ export default function StagingStocksPage() {
                                     onPress={() =>
                                       handleCopyToClipboard(
                                         selectedStock.BseCode!,
-                                        "bseCode"
+                                        "bseCode",
                                       )
                                     }
                                   >
@@ -716,8 +839,7 @@ export default function StagingStocksPage() {
                               </div>
                             </div>
                           )}
-
-                          {selectedStock.FaceValue && (
+                          {selectedStock.FaceValue != null && (
                             <div className="space-y-1">
                               <p className="text-xs text-default-500">
                                 Face Value
@@ -730,7 +852,6 @@ export default function StagingStocksPage() {
                         </div>
                       </AccordionItem>
 
-                      {/* System Information */}
                       <AccordionItem
                         key="system"
                         aria-label="System Information"
@@ -739,9 +860,7 @@ export default function StagingStocksPage() {
                             System Information
                           </span>
                         }
-                        classNames={{
-                          content: "pb-4 pt-2",
-                        }}
+                        classNames={{ content: "pb-4 pt-2" }}
                       >
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-1 sm:px-3">
                           <div className="space-y-1">
@@ -762,7 +881,7 @@ export default function StagingStocksPage() {
                                   onPress={() =>
                                     handleCopyToClipboard(
                                       selectedStock.Id,
-                                      "id"
+                                      "id",
                                     )
                                   }
                                 >
@@ -775,7 +894,6 @@ export default function StagingStocksPage() {
                               </Tooltip>
                             </div>
                           </div>
-
                           {selectedStock.CountryId && (
                             <div className="space-y-1">
                               <p className="text-xs text-default-500">
@@ -786,7 +904,6 @@ export default function StagingStocksPage() {
                               </p>
                             </div>
                           )}
-
                           {selectedStock.InvestmentTypeId && (
                             <div className="space-y-1">
                               <p className="text-xs text-default-500">
@@ -797,7 +914,6 @@ export default function StagingStocksPage() {
                               </p>
                             </div>
                           )}
-
                           <div className="space-y-1">
                             <p className="text-xs text-default-500">
                               Listed Status
@@ -833,239 +949,356 @@ export default function StagingStocksPage() {
           </ModalContent>
         </Modal>
 
-        {/* Add Stock Modal */}
-        <Modal isOpen={isModalOpen} onClose={handleCloseModal} size="2xl">
+        {/* Add Stock Modal — Stepper */}
+        <Modal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          size="2xl"
+          scrollBehavior="inside"
+        >
           <ModalContent>
-            <ModalHeader>Add Stock to Staging</ModalHeader>
-            <ModalBody>
-              <div className="grid grid-cols-1 gap-4">
-                <Input
-                  label="Symbol"
-                  placeholder="Enter stock symbol"
-                  value={formData.symbol}
-                  onChange={(e) =>
-                    setFormData({ ...formData, symbol: e.target.value })
-                  }
-                />
-                <Input
-                  label="ISIN"
-                  placeholder="Enter ISIN"
-                  value={formData.isin}
-                  onChange={(e) =>
-                    setFormData({ ...formData, isin: e.target.value })
-                  }
-                />
-                <Input
-                  label="BSE Code"
-                  placeholder="Enter BSE code"
-                  value={formData.bseCode}
-                  onChange={(e) =>
-                    setFormData({ ...formData, bseCode: e.target.value })
-                  }
-                />
-                <Input
-                  label="Stock Name"
-                  placeholder="Enter stock name (optional)"
-                  value={formData.stockName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, stockName: e.target.value })
-                  }
-                />
-                <Autocomplete
-                  label="Country"
-                  placeholder="Search country (optional)"
-                  selectedKey={formData.countryId}
-                  onSelectionChange={(key) =>
-                    setFormData({ ...formData, countryId: key as string })
-                  }
-                >
-                  {countries.map((country) => (
-                    <AutocompleteItem key={country.Id}>
-                      {country.Name}
-                    </AutocompleteItem>
-                  ))}
-                </Autocomplete>
-                <StockTypeAutocomplete
-                  name="investmentType"
-                  label="Investment Type"
-                  placeholder="Search investment type (optional)"
-                  value={formData.investmentType}
-                  onSelectionChange={(value) =>
-                    setFormData({
-                      ...formData,
-                      investmentType: value?.toString() || "",
-                    })
-                  }
-                  size="md"
-                />
+            <ModalHeader className="flex flex-col gap-1 pb-2">
+              <div className="flex items-center justify-between">
+                <span>Add Stock to Staging</span>
+                <span className="text-sm font-normal text-default-400">
+                  Step {addStep} of {ADD_STEPS.length}
+                </span>
               </div>
-              <p className="mt-2 text-sm text-default-500">
-                * At least one of Symbol, ISIN, or BSE Code must be provided
-              </p>
+            </ModalHeader>
+            <ModalBody className="pt-2">
+              <StepIndicator currentStep={addStep} />
+              <div className="mt-4">
+                {/* Step 1: Identifiers */}
+                {addStep === 1 && (
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <Input
+                      label="Symbol"
+                      placeholder="e.g. RELIANCE"
+                      value={formData.symbol}
+                      onChange={(e) =>
+                        setFormData({ ...formData, symbol: e.target.value })
+                      }
+                      isInvalid={!!stepErrors.symbol}
+                      errorMessage={stepErrors.symbol}
+                    />
+                    <Input
+                      label="ISIN"
+                      placeholder="e.g. INE002A01018"
+                      value={formData.isin}
+                      onChange={(e) =>
+                        setFormData({ ...formData, isin: e.target.value })
+                      }
+                    />
+                    <Input
+                      label="BSE Code"
+                      placeholder="e.g. 500325"
+                      value={formData.bseCode}
+                      onChange={(e) =>
+                        setFormData({ ...formData, bseCode: e.target.value })
+                      }
+                    />
+                    <Input
+                      label="Stock Name"
+                      placeholder="Enter stock name (optional)"
+                      value={formData.stockName}
+                      onChange={(e) =>
+                        setFormData({ ...formData, stockName: e.target.value })
+                      }
+                    />
+                  </div>
+                )}
+
+                {/* Step 2: Details */}
+                {addStep === 2 && (
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <CountryAutocomplete
+                      name="countryId"
+                      label="Country"
+                      placeholder="Search country (optional)"
+                      value={formData.countryId}
+                      onSelectionChange={(val) =>
+                        setFormData({
+                          ...formData,
+                          countryId: val?.toString() || "",
+                        })
+                      }
+                      variant="flat"
+                    />
+                    <StockTypeAutocomplete
+                      name="investmentType"
+                      label="Investment Type"
+                      placeholder="Search investment type (optional)"
+                      value={formData.investmentType}
+                      onSelectionChange={(val) =>
+                        setFormData({
+                          ...formData,
+                          investmentType: val?.toString() || "",
+                        })
+                      }
+                      size="md"
+                    />
+                    <div className="md:col-span-2 pt-1">
+                      <Switch
+                        isSelected={formData.isListed}
+                        onValueChange={(val) =>
+                          setFormData({ ...formData, isListed: val })
+                        }
+                      >
+                        <span className="text-sm">Listed</span>
+                      </Switch>
+                    </div>
+                  </div>
+                )}
+              </div>
             </ModalBody>
             <ModalFooter>
               <Button variant="flat" onPress={handleCloseModal}>
                 Cancel
               </Button>
-              <Button color="primary" onPress={handleAddStock}>
-                Add to Staging
-              </Button>
+              <div className="flex gap-2 ml-auto">
+                {addStep > 1 && (
+                  <Button
+                    variant="flat"
+                    startContent={<FiChevronLeft className="text-sm" />}
+                    onPress={handleBack}
+                  >
+                    Back
+                  </Button>
+                )}
+                {addStep < ADD_STEPS.length ? (
+                  <Button
+                    color="primary"
+                    endContent={<FiChevronRight className="text-sm" />}
+                    onPress={handleNext}
+                  >
+                    Next
+                  </Button>
+                ) : (
+                  <Button color="primary" onPress={handleAddStock}>
+                    Add to Staging
+                  </Button>
+                )}
+              </div>
             </ModalFooter>
           </ModalContent>
         </Modal>
 
-        {/* Edit Stock Modal */}
+        {/* Edit Stock Modal — Stepper */}
         <Modal
           isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditStep(1);
+            setEditStepErrors({});
+          }}
           size="3xl"
           scrollBehavior="inside"
         >
           <ModalContent>
-            <ModalHeader>Edit Staging Stock</ModalHeader>
-            <ModalBody>
+            <ModalHeader className="flex flex-col gap-1 pb-2">
+              <div className="flex items-center justify-between">
+                <span>Edit Staging Stock</span>
+                <span className="text-sm font-normal text-default-400">
+                  Step {editStep} of {ADD_STEPS.length}
+                </span>
+              </div>
+            </ModalHeader>
+            <ModalBody className="pt-2">
               {editingStock && (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <Input
-                    label="Symbol"
-                    placeholder="Enter stock symbol"
-                    value={editingStock.Symbol || ""}
-                    onChange={(e) =>
-                      setEditingStock({
-                        ...editingStock,
-                        Symbol: e.target.value || null,
-                      })
-                    }
-                  />
-                  <Input
-                    label="Stock Name"
-                    placeholder="Enter stock name"
-                    value={editingStock.Name || ""}
-                    onChange={(e) =>
-                      setEditingStock({
-                        ...editingStock,
-                        Name: e.target.value || null,
-                      })
-                    }
-                  />
-                  <Input
-                    label="ISIN"
-                    placeholder="Enter ISIN"
-                    value={editingStock.Isin || ""}
-                    onChange={(e) =>
-                      setEditingStock({
-                        ...editingStock,
-                        Isin: e.target.value || null,
-                      })
-                    }
-                  />
-                  <Input
-                    label="Face Value"
-                    type="number"
-                    placeholder="Enter face value"
-                    value={editingStock.FaceValue?.toString() || ""}
-                    onChange={(e) =>
-                      setEditingStock({
-                        ...editingStock,
-                        FaceValue: parseFloat(e.target.value) || null,
-                      })
-                    }
-                  />
-                  <Autocomplete
-                    label="Country"
-                    placeholder="Search country"
-                    selectedKey={editingStock.CountryId?.toString() || ""}
-                    onSelectionChange={(key) =>
-                      setEditingStock({
-                        ...editingStock,
-                        CountryId: key ? parseInt(key as string) : null,
-                      })
-                    }
-                  >
-                    {countries.map((country) => (
-                      <AutocompleteItem key={country.Id.toString()}>
-                        {country.Name}
-                      </AutocompleteItem>
-                    ))}
-                  </Autocomplete>
-                  <StockTypeAutocomplete
-                    name="investmentType"
-                    label="Investment Type"
-                    placeholder="Search investment type"
-                    value={editingStock.InvestmentTypeId || undefined}
-                    onSelectionChange={(value) =>
-                      setEditingStock({
-                        ...editingStock,
-                        InvestmentTypeId: value || null,
-                      })
-                    }
-                    size="md"
-                  />
-                  <Input
-                    label="BSE Code"
-                    placeholder="Enter BSE code"
-                    value={editingStock.BseCode || ""}
-                    onChange={(e) =>
-                      setEditingStock({
-                        ...editingStock,
-                        BseCode: e.target.value || null,
-                      })
-                    }
-                  />
-                  <Input
-                    label="Basic Industry"
-                    placeholder="Enter basic industry"
-                    value={editingStock.BasicIndustry || ""}
-                    onChange={(e) =>
-                      setEditingStock({
-                        ...editingStock,
-                        BasicIndustry: e.target.value || null,
-                      })
-                    }
-                  />
-                  <Input
-                    label="Sectoral Index"
-                    placeholder="Enter sectoral index"
-                    value={editingStock.SectoralIndex || ""}
-                    onChange={(e) =>
-                      setEditingStock({
-                        ...editingStock,
-                        SectoralIndex: e.target.value || null,
-                      })
-                    }
-                  />
-                  <div className="flex items-center gap-4">
-                    <Switch
-                      isSelected={editingStock.Slb || false}
-                      onValueChange={(value) =>
-                        setEditingStock({ ...editingStock, Slb: value })
-                      }
-                    >
-                      SLB
-                    </Switch>
-                    <Switch
-                      isSelected={editingStock.IsActive}
-                      onValueChange={(value) =>
-                        setEditingStock({ ...editingStock, IsActive: value })
-                      }
-                    >
-                      Active
-                    </Switch>
+                <>
+                  <StepIndicator currentStep={editStep} />
+                  <div className="mt-4">
+                    {/* Step 1: Identifiers */}
+                    {editStep === 1 && (
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <Input
+                          label="Symbol"
+                          placeholder="e.g. RELIANCE"
+                          value={editingStock.Symbol || ""}
+                          onChange={(e) =>
+                            setEditingStock({
+                              ...editingStock,
+                              Symbol: e.target.value || null,
+                            })
+                          }
+                          isInvalid={!!editStepErrors.symbol}
+                          errorMessage={editStepErrors.symbol}
+                        />
+                        <Input
+                          label="ISIN"
+                          placeholder="e.g. INE002A01018"
+                          value={editingStock.Isin || ""}
+                          onChange={(e) =>
+                            setEditingStock({
+                              ...editingStock,
+                              Isin: e.target.value || null,
+                            })
+                          }
+                        />
+                        <Input
+                          label="BSE Code"
+                          placeholder="e.g. 500325"
+                          value={editingStock.BseCode || ""}
+                          onChange={(e) =>
+                            setEditingStock({
+                              ...editingStock,
+                              BseCode: e.target.value || null,
+                            })
+                          }
+                        />
+                        <Input
+                          label="Stock Name"
+                          placeholder="Enter stock name"
+                          value={editingStock.Name || ""}
+                          onChange={(e) =>
+                            setEditingStock({
+                              ...editingStock,
+                              Name: e.target.value || null,
+                            })
+                          }
+                        />
+                        <Input
+                          label="Face Value"
+                          type="number"
+                          placeholder="e.g. 10"
+                          min="0"
+                          step="0.01"
+                          value={editingStock.FaceValue?.toString() || ""}
+                          onChange={(e) =>
+                            setEditingStock({
+                              ...editingStock,
+                              FaceValue: parseFloat(e.target.value) || null,
+                            })
+                          }
+                        />
+                      </div>
+                    )}
+
+                    {/* Step 2: Details */}
+                    {editStep === 2 && (
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <CountryAutocomplete
+                          name="countryId"
+                          label="Country"
+                          placeholder="Search country"
+                          value={editingStock.CountryId || undefined}
+                          onSelectionChange={(val) =>
+                            setEditingStock({
+                              ...editingStock,
+                              CountryId: val || null,
+                            })
+                          }
+                          variant="flat"
+                        />
+                        <StockTypeAutocomplete
+                          name="investmentType"
+                          label="Investment Type"
+                          placeholder="Search investment type"
+                          value={editingStock.InvestmentTypeId || undefined}
+                          onSelectionChange={(val) =>
+                            setEditingStock({
+                              ...editingStock,
+                              InvestmentTypeId: val || null,
+                            })
+                          }
+                          size="md"
+                        />
+                        <Input
+                          label="Basic Industry"
+                          placeholder="e.g. Refineries"
+                          value={editingStock.BasicIndustry || ""}
+                          onChange={(e) =>
+                            setEditingStock({
+                              ...editingStock,
+                              BasicIndustry: e.target.value || null,
+                            })
+                          }
+                        />
+                        <Input
+                          label="Sectoral Index"
+                          placeholder="e.g. NIFTY 50"
+                          value={editingStock.SectoralIndex || ""}
+                          onChange={(e) =>
+                            setEditingStock({
+                              ...editingStock,
+                              SectoralIndex: e.target.value || null,
+                            })
+                          }
+                        />
+                        <div className="md:col-span-2 flex items-center gap-8 pt-2">
+                          <Switch
+                            isSelected={editingStock.Slb || false}
+                            onValueChange={(val) =>
+                              setEditingStock({ ...editingStock, Slb: val })
+                            }
+                          >
+                            <span className="text-sm">SLB Eligible</span>
+                          </Switch>
+                          <Switch
+                            isSelected={editingStock.Listed}
+                            onValueChange={(val) =>
+                              setEditingStock({ ...editingStock, Listed: val })
+                            }
+                          >
+                            <span className="text-sm">Listed</span>
+                          </Switch>
+                          <Switch
+                            isSelected={editingStock.IsActive}
+                            onValueChange={(val) =>
+                              setEditingStock({
+                                ...editingStock,
+                                IsActive: val,
+                              })
+                            }
+                          >
+                            <span className="text-sm">Active</span>
+                          </Switch>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
+                </>
               )}
             </ModalBody>
             <ModalFooter>
-              <Button variant="light" onPress={() => setIsEditModalOpen(false)}>
+              <Button
+                variant="flat"
+                onPress={() => {
+                  setIsEditModalOpen(false);
+                  setEditStep(1);
+                  setEditStepErrors({});
+                }}
+              >
                 Cancel
               </Button>
-              <Button
-                color="primary"
-                onPress={handleSaveStock}
-                isLoading={isSaving}
-              >
-                Save Changes
-              </Button>
+              <div className="flex gap-2 ml-auto">
+                {editStep > 1 && (
+                  <Button
+                    variant="flat"
+                    startContent={<FiChevronLeft className="text-sm" />}
+                    onPress={handleEditBack}
+                  >
+                    Back
+                  </Button>
+                )}
+                {editStep < ADD_STEPS.length ? (
+                  <Button
+                    color="primary"
+                    endContent={<FiChevronRight className="text-sm" />}
+                    onPress={handleEditNext}
+                  >
+                    Next
+                  </Button>
+                ) : (
+                  <Button
+                    color="primary"
+                    onPress={handleSaveStock}
+                    isLoading={isSaving}
+                  >
+                    Save Changes
+                  </Button>
+                )}
+              </div>
             </ModalFooter>
           </ModalContent>
         </Modal>
@@ -1088,7 +1321,9 @@ export default function StagingStocksPage() {
                   <div className="rounded-lg bg-default-100 p-4">
                     <div className="space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-sm text-default-500">Symbol:</span>
+                        <span className="text-sm text-default-500">
+                          Symbol:
+                        </span>
                         <span className="font-semibold">
                           {migratingStock.Symbol || "N/A"}
                         </span>
@@ -1106,7 +1341,9 @@ export default function StagingStocksPage() {
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-default-500">BSE Code:</span>
+                        <span className="text-sm text-default-500">
+                          BSE Code:
+                        </span>
                         <span className="font-semibold">
                           {migratingStock.BseCode || "N/A"}
                         </span>
@@ -1115,9 +1352,9 @@ export default function StagingStocksPage() {
                   </div>
                   <div className="rounded-lg bg-warning-50 p-4">
                     <p className="text-sm text-warning-700">
-                      <strong>Warning:</strong> This action will remove the stock
-                      from staging and add it to the listed stocks directory. This
-                      action cannot be undone.
+                      <strong>Warning:</strong> This action will remove the
+                      stock from staging and add it to the listed stocks
+                      directory. This action cannot be undone.
                     </p>
                   </div>
                 </div>

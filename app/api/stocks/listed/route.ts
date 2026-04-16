@@ -84,17 +84,14 @@ export async function GET(request: NextRequest) {
       ],
     });
 
-    // Filter only listed stocks
-    const listedStocks = stocks.filter((stock) => stock.Listed === true);
-
     return NextResponse.json(
       {
         success: true,
-        data: listedStocks,
+        data: stocks,
         pagination: {
           page,
           limit,
-          hasMore: listedStocks.length === limit,
+          hasMore: stocks.length === limit,
         },
       },
       { status: 200 },

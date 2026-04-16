@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { callFunction, callProcedure } from "@/utils/db";
+import { callFunction } from "@/utils/db";
 
 interface Stock {
   Id: string;
@@ -45,15 +45,19 @@ export async function GET(request: NextRequest) {
     const stockName = searchParams.get("stockName") || null;
     const bseCode = searchParams.get("bseCode") || null;
     const investmentType = (() => {
-      const ids = searchParams.getAll("investmentType").map(Number).filter((n) => !isNaN(n));
+      const ids = searchParams
+        .getAll("investmentType")
+        .map(Number)
+        .filter((n) => !isNaN(n));
       return ids.length > 0 ? ids[0] : null;
     })();
     const countryId = searchParams.get("countryId")
       ? parseInt(searchParams.get("countryId")!)
       : null;
-    const isActive = searchParams.get("isActive") !== null
-      ? searchParams.get("isActive") === "true"
-      : true;
+    const isActive =
+      searchParams.get("isActive") !== null
+        ? searchParams.get("isActive") === "true"
+        : true;
 
     // Pagination parameters
     const page = searchParams.get("page")
@@ -92,7 +96,7 @@ export async function GET(request: NextRequest) {
           hasMore: stocks.length === limit,
         },
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("Error fetching staging stocks:", error);
@@ -102,7 +106,7 @@ export async function GET(request: NextRequest) {
         error: "Failed to fetch staging stocks",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -120,7 +124,7 @@ export async function POST(request: NextRequest) {
           success: false,
           error: "At least one of Symbol, ISIN, or BSE Code must be provided",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -144,7 +148,7 @@ export async function POST(request: NextRequest) {
         message: "Staging stock added successfully",
         data: result[0],
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Error adding staging stock:", error);
@@ -154,7 +158,7 @@ export async function POST(request: NextRequest) {
         error: "Failed to add staging stock",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
