@@ -16,7 +16,7 @@ export interface Stock {
   MacroSector: string | null;
   Industry: string | null;
   Listed: boolean;
-  IsActive: boolean;
+  Status: string | null;
 }
 
 interface StockAutocompleteProps {
@@ -240,13 +240,15 @@ export const StockAutocomplete: React.FC<StockAutocompleteProps> = ({
               {stock.Symbol && <span>Symbol: {stock.Symbol}</span>}
               {stock.Isin && <span>ISIN: {stock.Isin}</span>}
               {stock.Sector && <span>Sector: {stock.Sector}</span>}
-              <Chip
-                size="sm"
-                variant="dot"
-                color={stock.IsActive ? "success" : "danger"}
-              >
-                {stock.IsActive ? "Active" : "Inactive"}
-              </Chip>
+              {stock.Status && (
+                <Chip
+                  size="sm"
+                  variant="dot"
+                  color={stock.Status === "Active" ? "success" : "danger"}
+                >
+                  {stock.Status}
+                </Chip>
+              )}
             </div>
           </div>
         </AutocompleteItem>

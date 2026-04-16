@@ -90,7 +90,7 @@ export async function GET(
   }
 }
 
-// PUT: Update an unlisted stock using UpdateStockDirectory procedure
+// PUT: Update an unlisted stock using UpdateStagingStock procedure
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -112,6 +112,7 @@ export async function PUT(
       basicIndustry,
       sectoralIndex,
       slb,
+      listingDate,
       recordDate,
       issueDate,
       maturityDate,
@@ -141,39 +142,39 @@ export async function PUT(
     }
 
     await callProcedure({
-      procedureName: 'public."UpdateStockDirectory"',
+      procedureName: 'public."UpdateStagingStock"',
       dbName: process.env.PG_DEFAULT_DB,
       params: [
-        id, // p_stock_id
-        countryId,
-        investmentType,
-        isin || null,
-        stockName,
-        faceValue,
-        false, // p_is_listed = false for unlisted stocks
-        symbol || null,
-        bseCode || null,
-        macroSector || null,
-        sector || null,
-        industry || null,
-        basicIndustry || null,
-        sectoralIndex || null,
-        slb || false,
-        null, // listingDate - not applicable for unlisted
-        recordDate || null,
-        issueDate || null,
-        maturityDate || null,
-        ipoDate || null,
-        broadIndustry || null,
-        series || null,
-        issuer || null,
-        couponRate || null,
-        couponFrequency || null,
-        status || null,
-        description || null,
-        schemeName || null,
-        parentStockId || null,
-        isActive !== undefined ? isActive : true,
+        id,                 // p_stock_id
+        countryId,          // p_country_id
+        investmentType,     // p_investment_type (VARCHAR — accepts ID or ShortCode)
+        isin || null,       // p_isin
+        stockName,          // p_stock_name
+        faceValue,          // p_face_value
+        false,              // p_is_listed = false for unlisted stocks
+        symbol || null,     // p_symbol
+        bseCode || null,    // p_bse_code
+        macroSector || null,    // p_macro_sector
+        sector || null,         // p_sector
+        industry || null,       // p_industry
+        basicIndustry || null,  // p_basic_industry
+        sectoralIndex || null,  // p_sectoral_index
+        slb || false,           // p_slb
+        listingDate || null,    // p_listing_date
+        recordDate || null,     // p_record_date
+        issueDate || null,      // p_issue_date
+        maturityDate || null,   // p_maturity_date
+        ipoDate || null,        // p_ipo_date
+        broadIndustry || null,  // p_broad_industry
+        series || null,         // p_series
+        issuer || null,         // p_issuer
+        couponRate || null,     // p_coupon_rate
+        couponFrequency || null, // p_coupon_frequency
+        status || null,         // p_status
+        description || null,    // p_description
+        schemeName || null,     // p_scheme_name
+        parentStockId || null,  // p_parent_stock_id
+        isActive !== undefined ? isActive : true, // p_is_active
       ],
     });
 

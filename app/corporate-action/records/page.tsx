@@ -91,6 +91,7 @@ interface NewDetailRow {
   ratioBookValueHeld: number | null;
   ratioBookValueEntitled: number | null;
   targetSaleRow: boolean;
+  referenceDocUrl: string | null;
   remark: string | null;
 }
 
@@ -645,6 +646,7 @@ export default function CorporateActionRecordsPage() {
       ratioBookValueHeld: null,
       ratioBookValueEntitled: null,
       targetSaleRow: false,
+      referenceDocUrl: null,
       remark: null,
     };
     setNewAction({
@@ -729,6 +731,7 @@ export default function CorporateActionRecordsPage() {
           ratioBookValueHeld: d.ratioBookValueHeld,
           ratioBookValueEntitled: d.ratioBookValueEntitled,
           targetSaleRow: d.targetSaleRow,
+          referenceDocUrl: d.referenceDocUrl,
           remark: d.remark,
         })),
       });
@@ -1218,7 +1221,7 @@ export default function CorporateActionRecordsPage() {
                                           )
                                         }
                                       >
-                                        <FiDownload />
+                                        <FiDownload className="text-lg" />
                                       </Button>
                                     </Tooltip>
                                   )}
@@ -1307,8 +1310,21 @@ export default function CorporateActionRecordsPage() {
                     isRequired
                   >
                     {corporateActionTypes.map((type) => (
-                      <SelectItem key={type.Id.toString()}>
-                        {type.Name}
+                      <SelectItem
+                        key={type.Id.toString()}
+                        textValue={`${type.Code} - ${type.Name}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Chip
+                            size="sm"
+                            variant="dot"
+                            color="primary"
+                            className="shrink-0"
+                          >
+                            {type.Code}
+                          </Chip>
+                          <span>{type.Name}</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </Select>
@@ -1758,8 +1774,21 @@ export default function CorporateActionRecordsPage() {
                     isRequired
                   >
                     {corporateActionTypes.map((type) => (
-                      <SelectItem key={type.Id.toString()}>
-                        {type.Name}
+                      <SelectItem
+                        key={type.Id.toString()}
+                        textValue={`${type.Code} - ${type.Name}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Chip
+                            size="sm"
+                            variant="dot"
+                            color="primary"
+                            className="shrink-0"
+                          >
+                            {type.Code}
+                          </Chip>
+                          <span>{type.Name}</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </Select>
@@ -1975,6 +2004,20 @@ export default function CorporateActionRecordsPage() {
                               Target Sale Row
                             </Switch>
                           </div>
+
+                          <Input
+                            label="Reference Document URL"
+                            type="url"
+                            placeholder="https://example.com/document.pdf"
+                            value={detail.referenceDocUrl || ""}
+                            onValueChange={(value) =>
+                              handleUpdateDetailRow(
+                                detail.tempId,
+                                "referenceDocUrl",
+                                value || null,
+                              )
+                            }
+                          />
 
                           <Textarea
                             label="Detail Remark"

@@ -712,11 +712,15 @@ export default function ListedStocksPage() {
                 </TableCell>
                 <TableCell>
                   <Chip
-                    color={stock.IsActive ? "success" : "default"}
+                    color={
+                      stock.Status?.toLowerCase() === "active"
+                        ? "success"
+                        : "danger"
+                    }
                     size="sm"
                     variant="flat"
                   >
-                    {stock.IsActive ? "Active" : "Inactive"}
+                    {stock.Status || "-"}
                   </Chip>
                 </TableCell>
                 <TableCell>
