@@ -20,6 +20,7 @@ export function formatEpochDate(
         day: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: "UTC",
       });
     }
 
@@ -27,6 +28,7 @@ export function formatEpochDate(
       year: "numeric",
       month: "short",
       day: "2-digit",
+      timeZone: "UTC",
     });
   } catch (error) {
     console.error("Error formatting date:", error);
@@ -41,6 +43,18 @@ export function formatEpochDate(
  */
 export function dateToEpoch(date: Date): number {
   return Math.floor(date.getTime() / 1000);
+}
+
+/**
+ * Converts a "YYYY-MM-DD" date string to a UTC midnight epoch (in seconds).
+ * Always produces UTC midnight regardless of local timezone.
+ * Use this instead of dateToEpoch(new Date(dateStr)) to avoid local-timezone drift.
+ * @param dateStr - Date string in "YYYY-MM-DD" format
+ * @returns Epoch timestamp in seconds for UTC midnight of the given date
+ */
+export function dateStringToUtcEpoch(dateStr: string): number {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return Math.floor(Date.UTC(year, month - 1, day) / 1000);
 }
 
 /**
@@ -125,8 +139,23 @@ export function getFYEndEpochByYear(year: number): number {
 }
 
 /**
+ * Sets the time component of an epoch date to 8:00 PM UTC (20:00:00 UTC).
+ * The UTC date part is preserved; only the time is overridden.
+ * Used for corporate action record dates.
+ * @param epochSeconds - Unix timestamp in seconds
+ * @returns Epoch timestamp in seconds with time set to 8:00 PM UTC
+ */
+export function setToEveningUTC(epochSeconds: number): number {
+  const date = new Date(epochSeconds * 1000);
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+  const day = date.getUTCDate();
+  return Math.floor(Date.UTC(year, month, day, 20, 0, 0) / 1000);
+}
+
+/**
  * Sets the time component of an epoch date to 8:00 PM IST (20:00 IST = 14:30 UTC).
- * Used for corporate action record dates — the date part (in IST) is preserved,
+ * Used for corporate action ex dates — the date part (in IST) is preserved,
  * only the time is overridden to evening 8 PM IST.
  * @param epochSeconds - Unix timestamp in seconds
  * @returns Epoch timestamp in seconds with time set to 8:00 PM IST
@@ -139,6 +168,34 @@ export function setToEveningIST(epochSeconds: number): number {
   const day = istDate.getUTCDate();
   // 8:00 PM IST = 14:30 UTC
   return Math.floor(Date.UTC(year, month, day, 14, 30, 0) / 1000);
+}
+
+/**
+ * Sets the time component of an epoch date to 8:00 AM UTC (08:00:00 UTC).
+ * The UTC date part is preserved; only the time is overridden.
+ * Used for corporate action allotment dates.
+ * @param epochSeconds - Unix timestamp in seconds
+ * @returns Epoch timestamp in seconds with time set to 8:00 AM UTC
+ */
+export function setToMorningUTC(epochSeconds: number): number {
+  const date = new Date(epochSeconds * 1000);
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+  const day = date.getUTCDate();
+  return Math.floor(Date.UTC(year, month, day, 8, 0, 0) / 1000);
+}
+
+/**
+ * Advances a UTC midnight epoch to the next Monday if it falls on Saturday or Sunday.
+ * Saturday → +2 days (Monday), Sunday → +1 day (Monday), weekdays unchanged.
+ * @param epochSeconds - UTC midnight epoch in seconds
+ * @returns Epoch in seconds, guaranteed to be a weekday
+ */
+export function skipWeekend(epochSeconds: number): number {
+  const day = new Date(epochSeconds * 1000).getUTCDay(); // 0=Sun, 6=Sat
+  if (day === 6) return epochSeconds + 2 * 86400; // Sat → Mon
+  if (day === 0) return epochSeconds + 86400;      // Sun → Mon
+  return epochSeconds;
 }
 
 /**
