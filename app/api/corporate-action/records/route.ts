@@ -4,7 +4,8 @@ import {
   getCurrentFYEndEpoch,
   getFYStartEpochByYear,
   setToEveningIST,
-  setToMorningIST,
+  setToEveningUTC,
+  setToMorningUTC,
 } from "@/utils/date";
 import { callBulkUpsertCorpActionLogs } from "@/utils/corporateAction";
 import { publishToQueue } from "@/utils/rabbitmq";
@@ -176,10 +177,11 @@ export async function POST(request: NextRequest) {
       remark: detail.remark ?? null,
     }));
 
-    // Apply time rules: record date → 8 PM IST, allotment date → 8 AM IST
-    const adjustedRecordDate = setToEveningIST(recordDate);
+    // Apply time rules: ex/record date → 8 PM UTC, allotment date → 8 AM IST
+    const adjustedExDate = setToEveningUTC(exDate);
+    const adjustedRecordDate = setToEveningUTC(recordDate);
     const adjustedAllotmentDate = allotmentDate
-      ? setToMorningIST(allotmentDate)
+      ? setToMorningUTC(allotmentDate)
       : null;
 
     // Call the AddCorporateAction procedure
@@ -190,7 +192,7 @@ export async function POST(request: NextRequest) {
         null, // p_added_row_id (OUT parameter)
         sourceStockId, // p_source_stock_id
         corpActionTypeId, // p_corporate_action_type_id
-        exDate, // p_ex_date
+        adjustedExDate, // p_ex_date
         adjustedRecordDate, // p_record_date
         adjustedAllotmentDate, // p_allotment_date
         JSON.stringify(formattedDetails), // p_corporate_action_details

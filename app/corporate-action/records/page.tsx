@@ -37,7 +37,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { v4 as uuidv4 } from "uuid";
 import axiosInstance from "@/lib/axios";
-import { formatEpochDate, dateToEpoch } from "@/utils/date";
+import { formatEpochDate, dateStringToUtcEpoch, skipWeekend } from "@/utils/date";
 import { StockAutocomplete } from "@/components/StockAutocomplete";
 import {
   CorporateActionTypeSelect,
@@ -249,12 +249,10 @@ export default function CorporateActionRecordsPage() {
         return;
       }
 
-      // Initialize default date range (last 2 years)
+      // Initialize default date range (last 2 years) — use UTC to avoid timezone drift
       const now = new Date();
       const twoYearsAgo = new Date(
-        now.getFullYear() - 2,
-        now.getMonth(),
-        now.getDate(),
+        Date.UTC(now.getUTCFullYear() - 2, now.getUTCMonth(), now.getUTCDate()),
       );
       setTempStartDate(twoYearsAgo.toISOString().split("T")[0]);
       setTempEndDate(now.toISOString().split("T")[0]);
@@ -292,13 +290,11 @@ export default function CorporateActionRecordsPage() {
       params.append("rowLimit", pageSize.toString());
 
       if (startDate) {
-        const startEpoch = dateToEpoch(new Date(startDate));
-        params.append("startDate", startEpoch.toString());
+        params.append("startDate", dateStringToUtcEpoch(startDate).toString());
       }
 
       if (endDate) {
-        const endEpoch = dateToEpoch(new Date(endDate));
-        params.append("endDate", endEpoch.toString());
+        params.append("endDate", dateStringToUtcEpoch(endDate).toString());
       }
 
       if (corpActionTypeFilter !== "") {
@@ -350,9 +346,7 @@ export default function CorporateActionRecordsPage() {
   const handleClearFilters = () => {
     const now = new Date();
     const twoYearsAgo = new Date(
-      now.getFullYear() - 2,
-      now.getMonth(),
-      now.getDate(),
+      Date.UTC(now.getUTCFullYear() - 2, now.getUTCMonth(), now.getUTCDate()),
     );
     const defaultStart = twoYearsAgo.toISOString().split("T")[0];
     const defaultEnd = now.toISOString().split("T")[0];
@@ -1376,10 +1370,9 @@ export default function CorporateActionRecordsPage() {
                           : ""
                       }
                       onValueChange={(value) => {
-                        const date = new Date(value);
                         setEditingRecord({
                           ...editingRecord,
-                          ExDate: dateToEpoch(date),
+                          ExDate: dateStringToUtcEpoch(value),
                         });
                       }}
                       isRequired
@@ -1395,14 +1388,20 @@ export default function CorporateActionRecordsPage() {
                               .split("T")[0]
                           : ""
                       }
+                      min={
+                        editingRecord.ExDate
+                          ? new Date((editingRecord.ExDate + 86400) * 1000)
+                              .toISOString()
+                              .split("T")[0]
+                          : undefined
+                      }
+                      isDisabled={!editingRecord.ExDate}
                       onValueChange={(value) => {
-                        const date = new Date(value);
-                        const nextDay = new Date(value);
-                        nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+                        const utcMidnight = dateStringToUtcEpoch(value);
                         setEditingRecord({
                           ...editingRecord,
-                          RecordDate: dateToEpoch(date),
-                          AllotmentDate: dateToEpoch(nextDay),
+                          RecordDate: utcMidnight,
+                          AllotmentDate: skipWeekend(utcMidnight + 86400),
                         });
                       }}
                       isRequired
@@ -1418,11 +1417,18 @@ export default function CorporateActionRecordsPage() {
                               .split("T")[0]
                           : ""
                       }
+                      min={
+                        editingRecord.RecordDate
+                          ? new Date((editingRecord.RecordDate + 86400) * 1000)
+                              .toISOString()
+                              .split("T")[0]
+                          : undefined
+                      }
+                      isDisabled={!editingRecord.RecordDate}
                       onValueChange={(value) => {
-                        const date = value ? new Date(value) : null;
                         setEditingRecord({
                           ...editingRecord,
-                          AllotmentDate: date ? dateToEpoch(date) : null,
+                          AllotmentDate: value ? skipWeekend(dateStringToUtcEpoch(value)) : null,
                         });
                       }}
                     />
@@ -1818,10 +1824,9 @@ export default function CorporateActionRecordsPage() {
                       label="Ex Date"
                       type="date"
                       onValueChange={(value) => {
-                        const date = new Date(value);
                         setNewAction({
                           ...newAction,
-                          exDate: dateToEpoch(date),
+                          exDate: dateStringToUtcEpoch(value),
                         });
                       }}
                       isRequired
@@ -1830,16 +1835,25 @@ export default function CorporateActionRecordsPage() {
                     <Input
                       label="Record Date"
                       type="date"
+                      min={
+                        newAction.exDate
+                          ? new Date((newAction.exDate + 86400) * 1000)
+                              .toISOString()
+                              .split("T")[0]
+                          : undefined
+                      }
+                      isDisabled={!newAction.exDate}
                       onValueChange={(value) => {
-                        const date = new Date(value);
-                        const nextDay = new Date(value);
-                        nextDay.setUTCDate(nextDay.getUTCDate() + 1);
-                        const nextDayStr = nextDay.toISOString().split("T")[0];
-                        setAddAllotmentDateValue(nextDayStr);
+                        const utcMidnight = dateStringToUtcEpoch(value);
+                        const allotmentEpoch = skipWeekend(utcMidnight + 86400);
+                        const allotmentStr = new Date(allotmentEpoch * 1000)
+                          .toISOString()
+                          .split("T")[0];
+                        setAddAllotmentDateValue(allotmentStr);
                         setNewAction({
                           ...newAction,
-                          recordDate: dateToEpoch(date),
-                          allotmentDate: dateToEpoch(nextDay),
+                          recordDate: utcMidnight,
+                          allotmentDate: allotmentEpoch,
                         });
                       }}
                       isRequired
@@ -1849,12 +1863,23 @@ export default function CorporateActionRecordsPage() {
                       label="Allotment Date"
                       type="date"
                       value={addAllotmentDateValue}
+                      min={
+                        newAction.recordDate
+                          ? new Date((newAction.recordDate + 86400) * 1000)
+                              .toISOString()
+                              .split("T")[0]
+                          : undefined
+                      }
+                      isDisabled={!newAction.recordDate}
                       onValueChange={(value) => {
-                        setAddAllotmentDateValue(value);
-                        const date = value ? new Date(value) : null;
+                        const epoch = value ? skipWeekend(dateStringToUtcEpoch(value)) : null;
+                        const correctedStr = epoch
+                          ? new Date(epoch * 1000).toISOString().split("T")[0]
+                          : "";
+                        setAddAllotmentDateValue(correctedStr);
                         setNewAction({
                           ...newAction,
-                          allotmentDate: date ? dateToEpoch(date) : null,
+                          allotmentDate: epoch,
                         });
                       }}
                     />
