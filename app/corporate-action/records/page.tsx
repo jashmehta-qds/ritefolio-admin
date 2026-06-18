@@ -801,6 +801,8 @@ export default function CorporateActionRecordsPage() {
       }
     } catch (error: any) {
       console.error("Error deleting record:", error);
+      setIsDeleteRecordModalOpen(false);
+      setDeletingRecord(null);
       const errorMessage =
         error.response?.data?.message || "Error deleting record";
       showToast(errorMessage, "error");
@@ -2199,7 +2201,7 @@ export default function CorporateActionRecordsPage() {
 
         {/* Toast Notification */}
         {toast && (
-          <div className="fixed bottom-4 right-4 z-50">
+          <div className="fixed bottom-4 right-4 z-[9999]">
             <div
               className={`rounded-lg px-6 py-4 shadow-lg ${
                 toast.type === "success"
