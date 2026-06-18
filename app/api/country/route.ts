@@ -17,13 +17,13 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const isActiveParam = searchParams.get("isActive");
-    const isActive =
-      isActiveParam !== null ? isActiveParam === "true" : null;
+    const isActive = isActiveParam !== null ? isActiveParam === "true" : null;
 
     const countries = await callFunction<Country>({
       functionName: 'public."FetchCountries"',
       dbName: process.env.PG_DEFAULT_DB,
       params: [null, null, null, isActive],
+      orderBy: "asc",
     });
 
     return NextResponse.json(
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
         success: true,
         data: countries,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("Error fetching countries:", error);
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
         error: "Failed to fetch countries",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -50,13 +50,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const {
-      name,
-      isoCode,
-      currencyCode,
-      countryCode,
-      isActive = true,
-    } = body;
+    const { name, isoCode, currencyCode, countryCode, isActive = true } = body;
 
     // Validation
     if (!name || !isoCode || !currencyCode || countryCode === undefined) {
@@ -64,10 +58,9 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: "Missing required fields",
-          message:
-            "Name, isoCode, currencyCode, and countryCode are required",
+          message: "Name, isoCode, currencyCode, and countryCode are required",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -83,7 +76,7 @@ export async function POST(request: NextRequest) {
         success: true,
         message: "Country created successfully",
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Error creating country:", error);
@@ -93,7 +86,7 @@ export async function POST(request: NextRequest) {
         error: "Failed to create country",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

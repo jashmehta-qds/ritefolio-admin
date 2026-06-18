@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Autocomplete, AutocompleteItem } from "@heroui/autocomplete";
 import { FiMapPin } from "react-icons/fi";
 import axiosInstance from "@/lib/axios";
@@ -31,7 +31,7 @@ interface CountryAutocompleteProps {
 export const CountryAutocomplete: React.FC<CountryAutocompleteProps> = ({
   name,
   label,
-  placeholder = "Search and select country",
+  placeholder = "Search by name or code",
   value,
   onSelectionChange,
   variant = "bordered",
@@ -44,50 +44,64 @@ export const CountryAutocomplete: React.FC<CountryAutocompleteProps> = ({
 }) => {
   const [countries, setCountries] = useState<Country[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [inputValue, setInputValue] = useState("");
 
   useEffect(() => {
     const fetchCountries = async () => {
       setIsLoading(true);
-      setError(null);
-
+      setFetchError(null);
       try {
         const response = await axiosInstance.get("/country?isActive=true");
         if (response.data.success && response.data.data) {
           setCountries(response.data.data);
         } else {
-          setError(response.data.message || "Failed to load countries");
+          setFetchError(response.data.message || "Failed to load countries");
         }
       } catch {
-        setError("Failed to load countries");
+        setFetchError("Failed to load countries");
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchCountries();
   }, []);
 
-  const handleSelectionChange = (key: React.Key | null) => {
-    if (key) {
-      const selected = countries.find((c) => c.Id.toString() === key);
-      onSelectionChange(selected ? selected.Id : null);
-    } else {
-      onSelectionChange(null);
+  // Sync display name when value or country list changes (edit mode)
+  useEffect(() => {
+    if (!value) {
+      setInputValue("");
+      return;
     }
+    if (countries.length > 0) {
+      const match = countries.find((c) => c.Id.toString() === value.toString());
+      if (match) setInputValue(match.Name);
+    }
+  }, [value, countries]);
+
+  const filteredCountries = useMemo(() => {
+    const q = inputValue.trim().toLowerCase();
+    if (!q) return countries;
+    return countries.filter(
+      (c) =>
+        c.Name.toLowerCase().includes(q) ||
+        c.IsoCode.toLowerCase().includes(q) ||
+        c.CountryCode?.toString().includes(q),
+    );
+  }, [countries, inputValue]);
+
+  const handleSelectionChange = (key: React.Key | null) => {
+    const country = key
+      ? countries.find((c) => c.Id.toString() === key.toString())
+      : null;
+    setInputValue(country ? country.Name : "");
+    onSelectionChange(country ? country.Id : null);
   };
 
-  const selectedKey = value ? value.toString() : null;
-
-  if (error) {
-    return (
-      <div className="p-3 border border-danger-200 bg-danger-50 rounded-lg">
-        <p className="text-danger-700 text-sm">
-          Error loading countries: {error}
-        </p>
-      </div>
-    );
-  }
+  const handleInputChange = (val: string) => {
+    setInputValue(val);
+    if (!val.trim()) onSelectionChange(null);
+  };
 
   return (
     <Autocomplete
@@ -95,31 +109,42 @@ export const CountryAutocomplete: React.FC<CountryAutocompleteProps> = ({
       label={label}
       placeholder={placeholder}
       variant={variant}
-      selectedKey={selectedKey}
+      inputValue={inputValue}
+      onInputChange={handleInputChange}
+      selectedKey={value ? value.toString() : null}
       onSelectionChange={handleSelectionChange}
       isRequired={isRequired}
       isInvalid={isInvalid}
-      errorMessage={errorMessage}
+      errorMessage={fetchError ?? errorMessage}
       isDisabled={isDisabled}
       isLoading={isLoading}
       description={description}
       startContent={
-        startContent || <FiMapPin className="w-4 h-4 text-default-400" />
+        startContent || <FiMapPin className="h-4 w-4 text-default-400" />
       }
-      items={countries}
+      items={filteredCountries}
+      aria-label={label}
       listboxProps={{
-        classNames: {
-          list: "max-h-[200px] overflow-auto",
-        },
+        emptyContent: isLoading ? "Loading countries…" : "No countries found.",
       }}
     >
       {(country) => (
         <AutocompleteItem key={country.Id} textValue={country.Name}>
-          <div className="flex flex-col">
-            <span className="text-small font-medium">{country.Name}</span>
-            <span className="text-tiny text-default-400">
-              {country.IsoCode} • Code: {country.CountryCode}
+          <div className="flex items-center gap-2.5 py-0.5">
+            <span className="bg-default-100 text-default-500 inline-flex w-18 shrink-0 items-center justify-center rounded py-0.5 font-mono text-[10px] font-semibold tracking-wider">
+              {country.IsoCode}
+              {country.CountryCode ? (
+                <>
+                  <span className="mx-0.5 text-default-300">|</span>+
+                  {country.CountryCode}
+                </>
+              ) : null}
             </span>
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-sm font-medium">
+                {country.Name}
+              </span>
+            </div>
           </div>
         </AutocompleteItem>
       )}

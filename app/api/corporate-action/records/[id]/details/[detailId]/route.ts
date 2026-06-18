@@ -88,7 +88,6 @@ export async function DELETE(
 ) {
   try {
     const { detailId } = await params;
-    const body: UpdateDetailParams = await request.json();
 
     if (!detailId) {
       return NextResponse.json(
