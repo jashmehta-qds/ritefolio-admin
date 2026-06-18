@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callProcedure } from "@/utils/db";
 import { callBulkUpsertCorpActionLogs } from "@/utils/corporateAction";
-import { setToEveningIST, setToEveningUTC, setToMorningUTC } from "@/utils/date";
+import { setToEveningUTC, setToMorningUTC } from "@/utils/date";
 
 interface UpdateRecordParams {
   sourceStockId: string;
@@ -16,7 +16,7 @@ interface UpdateRecordParams {
 // PUT: Update a corporate action record
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id: recordId } = await params;
@@ -34,7 +34,7 @@ export async function PUT(
           success: false,
           error: "Missing required fields",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -69,7 +69,7 @@ export async function PUT(
         success: true,
         message: "Corporate action record updated successfully",
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("Error updating corporate action record:", error);
@@ -79,7 +79,7 @@ export async function PUT(
         error: "Failed to update corporate action record",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -87,11 +87,10 @@ export async function PUT(
 // DELETE: Delete a corporate action record
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id: recordId } = await params;
-    const body: UpdateRecordParams = await request.json();
 
     if (!recordId) {
       return NextResponse.json(
@@ -99,7 +98,7 @@ export async function DELETE(
           success: false,
           error: "Record ID is required",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -118,7 +117,7 @@ export async function DELETE(
         success: true,
         message: "Corporate action record deleted successfully",
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error: any) {
     console.error("Error deleting corporate action record:", error);
@@ -136,7 +135,7 @@ export async function DELETE(
           message:
             "This corporate action record has associated details. Please delete all detail records first before deleting the main record.",
         },
-        { status: 409 } // 409 Conflict
+        { status: 409 }, // 409 Conflict
       );
     }
 
@@ -146,7 +145,7 @@ export async function DELETE(
         error: "Failed to delete corporate action record",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

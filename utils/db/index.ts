@@ -66,17 +66,20 @@ export async function callFunction<T = unknown>({
   functionName,
   dbName,
   params,
+  orderBy,
 }: {
   functionName: string;
   dbName?: string;
   params?: unknown[];
+  orderBy?: "asc" | "desc" | false;
 }): Promise<T[]> {
   const pool = getPool(dbName);
   const client = await pool.connect();
 
   try {
     const placeholders = params?.map((_, i) => `$${i + 1}`).join(", ") || "";
-    const query = `SELECT * FROM ${functionName}(${placeholders})`;
+    const order = orderBy !== false ? ` ORDER BY "Id" ${orderBy ?? "asc"}` : "";
+    const query = `SELECT * FROM ${functionName}(${placeholders})${order}`;
     const res = await client.query<T & QueryResultRow>(query, params);
     return res.rows;
   } catch (err: unknown) {
