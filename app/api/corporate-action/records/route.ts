@@ -71,6 +71,7 @@ export async function GET(request: NextRequest) {
         actionRecordId,
         isActive !== null ? isActive === "true" : null,
       ],
+      orderBy: false,
     });
 
     const totalCount = countResult[0]?.CountCorpActionRecords || 0;
@@ -89,6 +90,7 @@ export async function GET(request: NextRequest) {
         rowStart,
         rowLimit,
       ],
+      orderBy: false,
     });
 
     // Calculate pagination metadata
