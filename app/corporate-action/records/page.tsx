@@ -427,16 +427,7 @@ export default function CorporateActionRecordsPage() {
 
   // Edit Record Handlers
   const handleEditRecord = async (record: CorporateActionRecord) => {
-    // If allotment date is not set, default it to record date + 1 day
-    const allotmentDate =
-      record.AllotmentDate ||
-      (record.RecordDate
-        ? (() => {
-            const next = new Date(record.RecordDate * 1000);
-            next.setUTCDate(next.getUTCDate() + 1);
-            return Math.floor(next.getTime() / 1000);
-          })()
-        : null);
+    const allotmentDate = record.AllotmentDate || record.ExDate || null;
     setEditingRecord({ ...record, AllotmentDate: allotmentDate });
 
     // Fetch the stock details to get the stock name for the autocomplete
@@ -1372,9 +1363,12 @@ export default function CorporateActionRecordsPage() {
                           : ""
                       }
                       onValueChange={(value) => {
+                        const epoch = value ? dateStringToUtcEpoch(value) : 0;
                         setEditingRecord({
                           ...editingRecord,
-                          ExDate: dateStringToUtcEpoch(value),
+                          ExDate: epoch,
+                          RecordDate: epoch,
+                          AllotmentDate: epoch || null,
                         });
                       }}
                       isRequired
@@ -1392,18 +1386,16 @@ export default function CorporateActionRecordsPage() {
                       }
                       min={
                         editingRecord.ExDate
-                          ? new Date((editingRecord.ExDate + 86400) * 1000)
+                          ? new Date(editingRecord.ExDate * 1000)
                               .toISOString()
                               .split("T")[0]
                           : undefined
                       }
                       isDisabled={!editingRecord.ExDate}
                       onValueChange={(value) => {
-                        const utcMidnight = dateStringToUtcEpoch(value);
                         setEditingRecord({
                           ...editingRecord,
-                          RecordDate: utcMidnight,
-                          AllotmentDate: skipWeekend(utcMidnight + 86400),
+                          RecordDate: value ? dateStringToUtcEpoch(value) : 0,
                         });
                       }}
                       isRequired
@@ -1420,17 +1412,17 @@ export default function CorporateActionRecordsPage() {
                           : ""
                       }
                       min={
-                        editingRecord.RecordDate
-                          ? new Date((editingRecord.RecordDate + 86400) * 1000)
+                        editingRecord.ExDate
+                          ? new Date(editingRecord.ExDate * 1000)
                               .toISOString()
                               .split("T")[0]
                           : undefined
                       }
-                      isDisabled={!editingRecord.RecordDate}
+                      isDisabled={!editingRecord.ExDate}
                       onValueChange={(value) => {
                         setEditingRecord({
                           ...editingRecord,
-                          AllotmentDate: value ? skipWeekend(dateStringToUtcEpoch(value)) : null,
+                          AllotmentDate: value ? dateStringToUtcEpoch(value) : null,
                         });
                       }}
                     />
@@ -1826,9 +1818,16 @@ export default function CorporateActionRecordsPage() {
                       label="Ex Date"
                       type="date"
                       onValueChange={(value) => {
+                        const epoch = value ? dateStringToUtcEpoch(value) : 0;
+                        const dateStr = epoch
+                          ? new Date(epoch * 1000).toISOString().split("T")[0]
+                          : "";
+                        setAddAllotmentDateValue(dateStr);
                         setNewAction({
                           ...newAction,
-                          exDate: dateStringToUtcEpoch(value),
+                          exDate: epoch,
+                          recordDate: epoch,
+                          allotmentDate: epoch || null,
                         });
                       }}
                       isRequired
@@ -1837,25 +1836,25 @@ export default function CorporateActionRecordsPage() {
                     <Input
                       label="Record Date"
                       type="date"
+                      value={
+                        newAction.recordDate
+                          ? new Date(newAction.recordDate * 1000)
+                              .toISOString()
+                              .split("T")[0]
+                          : ""
+                      }
                       min={
                         newAction.exDate
-                          ? new Date((newAction.exDate + 86400) * 1000)
+                          ? new Date(newAction.exDate * 1000)
                               .toISOString()
                               .split("T")[0]
                           : undefined
                       }
                       isDisabled={!newAction.exDate}
                       onValueChange={(value) => {
-                        const utcMidnight = dateStringToUtcEpoch(value);
-                        const allotmentEpoch = skipWeekend(utcMidnight + 86400);
-                        const allotmentStr = new Date(allotmentEpoch * 1000)
-                          .toISOString()
-                          .split("T")[0];
-                        setAddAllotmentDateValue(allotmentStr);
                         setNewAction({
                           ...newAction,
-                          recordDate: utcMidnight,
-                          allotmentDate: allotmentEpoch,
+                          recordDate: value ? dateStringToUtcEpoch(value) : 0,
                         });
                       }}
                       isRequired
@@ -1866,22 +1865,18 @@ export default function CorporateActionRecordsPage() {
                       type="date"
                       value={addAllotmentDateValue}
                       min={
-                        newAction.recordDate
-                          ? new Date((newAction.recordDate + 86400) * 1000)
+                        newAction.exDate
+                          ? new Date(newAction.exDate * 1000)
                               .toISOString()
                               .split("T")[0]
                           : undefined
                       }
-                      isDisabled={!newAction.recordDate}
+                      isDisabled={!newAction.exDate}
                       onValueChange={(value) => {
-                        const epoch = value ? skipWeekend(dateStringToUtcEpoch(value)) : null;
-                        const correctedStr = epoch
-                          ? new Date(epoch * 1000).toISOString().split("T")[0]
-                          : "";
-                        setAddAllotmentDateValue(correctedStr);
+                        setAddAllotmentDateValue(value);
                         setNewAction({
                           ...newAction,
-                          allotmentDate: epoch,
+                          allotmentDate: value ? dateStringToUtcEpoch(value) : null,
                         });
                       }}
                     />
