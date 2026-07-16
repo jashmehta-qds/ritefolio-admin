@@ -3,8 +3,6 @@ import { callFunction, callProcedure } from "@/utils/db";
 import {
   getCurrentFYEndEpoch,
   getFYStartEpochByYear,
-  setToEveningIST,
-  setToEveningUTC,
   setToMorningUTC,
 } from "@/utils/date";
 import { callBulkUpsertCorpActionLogs } from "@/utils/corporateAction";
@@ -179,9 +177,10 @@ export async function POST(request: NextRequest) {
       remark: detail.remark ?? null,
     }));
 
-    // Apply time rules: ex/record date → 8 PM UTC, allotment date → 8 AM IST
-    const adjustedExDate = setToEveningUTC(exDate);
-    const adjustedRecordDate = setToEveningUTC(recordDate);
+    // Ex/record date carry a user-selected time (defaults to 8 PM UTC in the UI);
+    // allotment date time is always normalized to 8 AM UTC.
+    const adjustedExDate = exDate;
+    const adjustedRecordDate = recordDate;
     const adjustedAllotmentDate = allotmentDate
       ? setToMorningUTC(allotmentDate)
       : null;

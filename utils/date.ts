@@ -139,6 +139,42 @@ export function getFYEndEpochByYear(year: number): number {
 }
 
 /**
+ * Default time (UTC, 24h "HH:mm") applied to corporate action Ex Date / Record Date
+ * when the user has not explicitly picked a time.
+ */
+export const CA_DEFAULT_TIME_UTC = "20:00";
+
+/**
+ * Combines a "YYYY-MM-DD" date string with an "HH:mm" time string into a UTC epoch (in seconds).
+ * @param dateStr - Date string in "YYYY-MM-DD" format
+ * @param timeStr - Time string in "HH:mm" format (defaults to CA_DEFAULT_TIME_UTC)
+ * @returns Epoch timestamp in seconds
+ */
+export function dateTimeStringToUtcEpoch(
+  dateStr: string,
+  timeStr: string = CA_DEFAULT_TIME_UTC
+): number {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const [hour, minute] = timeStr.split(":").map(Number);
+  return Math.floor(Date.UTC(year, month - 1, day, hour, minute, 0) / 1000);
+}
+
+/**
+ * Extracts the UTC time-of-day from an epoch timestamp as an "HH:mm" string.
+ * @param epochSeconds - Unix timestamp in seconds
+ * @returns Time string in "HH:mm" format (UTC), or CA_DEFAULT_TIME_UTC if no epoch given
+ */
+export function epochToUtcTimeString(
+  epochSeconds: number | null | undefined
+): string {
+  if (!epochSeconds) return CA_DEFAULT_TIME_UTC;
+  const date = new Date(epochSeconds * 1000);
+  const hours = String(date.getUTCHours()).padStart(2, "0");
+  const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+/**
  * Sets the time component of an epoch date to 8:00 PM UTC (20:00:00 UTC).
  * The UTC date part is preserved; only the time is overridden.
  * Used for corporate action record dates.
