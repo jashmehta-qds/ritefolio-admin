@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callProcedure } from "@/utils/db";
 import { callBulkUpsertCorpActionLogs } from "@/utils/corporateAction";
-import { setToMorningUTC } from "@/utils/date";
 
 interface UpdateRecordParams {
   sourceStockId: string;
@@ -38,13 +37,9 @@ export async function PUT(
       );
     }
 
-    // Ex/record date carry a user-selected time (defaults to 8 PM UTC in the UI);
-    // allotment date time is always normalized to 8 AM UTC.
     const adjustedExDate = body.exDate;
     const adjustedRecordDate = body.recordDate;
-    const adjustedAllotmentDate = body.allotmentDate
-      ? setToMorningUTC(body.allotmentDate)
-      : null;
+    const adjustedAllotmentDate = body.allotmentDate || null;
 
     // Call the UpdateCorpActRecord procedure
     await callProcedure({
