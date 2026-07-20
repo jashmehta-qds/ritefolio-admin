@@ -1001,7 +1001,9 @@ export default function CorporateActionRecordsPage() {
                   </Chip>
                 </TableCell>
                 <TableCell>{formatEpochDate(record.ExDate, true)}</TableCell>
-                <TableCell>{formatEpochDate(record.RecordDate, true)}</TableCell>
+                <TableCell>
+                  {formatEpochDate(record.RecordDate, true)}
+                </TableCell>
                 <TableCell>
                   <Chip
                     color={record.IsActive ? "success" : "default"}
@@ -1368,7 +1370,7 @@ export default function CorporateActionRecordsPage() {
                         value={epochToDateStr(editingRecord.ExDate)}
                         onValueChange={(value) => {
                           const timeStr = epochToUtcTimeString(
-                            editingRecord.ExDate
+                            editingRecord.ExDate,
                           );
                           const epoch = value
                             ? dateTimeStringToUtcEpoch(value, timeStr)
@@ -1383,7 +1385,7 @@ export default function CorporateActionRecordsPage() {
                         isRequired
                       />
                       <Input
-                        label="Ex Time (UTC)"
+                        label="Ex Time"
                         type="time"
                         value={epochToUtcTimeString(editingRecord.ExDate)}
                         isDisabled={!editingRecord.ExDate}
@@ -1391,7 +1393,7 @@ export default function CorporateActionRecordsPage() {
                           if (!editingRecord.ExDate) return;
                           const epoch = dateTimeStringToUtcEpoch(
                             epochToDateStr(editingRecord.ExDate),
-                            value
+                            value,
                           );
                           setEditingRecord({ ...editingRecord, ExDate: epoch });
                         }}
@@ -1407,7 +1409,7 @@ export default function CorporateActionRecordsPage() {
                         isDisabled={!editingRecord.ExDate}
                         onValueChange={(value) => {
                           const timeStr = epochToUtcTimeString(
-                            editingRecord.RecordDate
+                            editingRecord.RecordDate,
                           );
                           setEditingRecord({
                             ...editingRecord,
@@ -1419,7 +1421,7 @@ export default function CorporateActionRecordsPage() {
                         isRequired
                       />
                       <Input
-                        label="Record Time (UTC)"
+                        label="Record Time"
                         type="time"
                         value={epochToUtcTimeString(editingRecord.RecordDate)}
                         isDisabled={!editingRecord.RecordDate}
@@ -1427,7 +1429,7 @@ export default function CorporateActionRecordsPage() {
                           if (!editingRecord.RecordDate) return;
                           const epoch = dateTimeStringToUtcEpoch(
                             epochToDateStr(editingRecord.RecordDate),
-                            value
+                            value,
                           );
                           setEditingRecord({
                             ...editingRecord,
@@ -1437,19 +1439,45 @@ export default function CorporateActionRecordsPage() {
                       />
                     </div>
 
-                    <Input
-                      label="Allotment Date"
-                      type="date"
-                      value={epochToDateStr(editingRecord.AllotmentDate)}
-                      min={epochToDateStr(editingRecord.ExDate) || undefined}
-                      isDisabled={!editingRecord.ExDate}
-                      onValueChange={(value) => {
-                        setEditingRecord({
-                          ...editingRecord,
-                          AllotmentDate: value ? dateStringToUtcEpoch(value) : null,
-                        });
-                      }}
-                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        label="Allotment Date"
+                        type="date"
+                        value={epochToDateStr(editingRecord.AllotmentDate)}
+                        min={epochToDateStr(editingRecord.ExDate) || undefined}
+                        isDisabled={!editingRecord.ExDate}
+                        onValueChange={(value) => {
+                          const timeStr = epochToUtcTimeString(
+                            editingRecord.AllotmentDate,
+                          );
+                          setEditingRecord({
+                            ...editingRecord,
+                            AllotmentDate: value
+                              ? dateTimeStringToUtcEpoch(value, timeStr)
+                              : null,
+                          });
+                        }}
+                      />
+                      <Input
+                        label="Allotment Time"
+                        type="time"
+                        value={epochToUtcTimeString(
+                          editingRecord.AllotmentDate,
+                        )}
+                        isDisabled={!editingRecord.AllotmentDate}
+                        onValueChange={(value) => {
+                          if (!editingRecord.AllotmentDate) return;
+                          const epoch = dateTimeStringToUtcEpoch(
+                            epochToDateStr(editingRecord.AllotmentDate),
+                            value,
+                          );
+                          setEditingRecord({
+                            ...editingRecord,
+                            AllotmentDate: epoch,
+                          });
+                        }}
+                      />
+                    </div>
                   </div>
 
                   <Textarea
@@ -1845,7 +1873,7 @@ export default function CorporateActionRecordsPage() {
                         value={epochToDateStr(newAction.exDate)}
                         onValueChange={(value) => {
                           const timeStr = epochToUtcTimeString(
-                            newAction.exDate
+                            newAction.exDate,
                           );
                           const epoch = value
                             ? dateTimeStringToUtcEpoch(value, timeStr)
@@ -1861,7 +1889,7 @@ export default function CorporateActionRecordsPage() {
                         isRequired
                       />
                       <Input
-                        label="Ex Time (UTC)"
+                        label="Ex Time"
                         type="time"
                         value={epochToUtcTimeString(newAction.exDate)}
                         isDisabled={!newAction.exDate}
@@ -1869,7 +1897,7 @@ export default function CorporateActionRecordsPage() {
                           if (!newAction.exDate) return;
                           const epoch = dateTimeStringToUtcEpoch(
                             epochToDateStr(newAction.exDate),
-                            value
+                            value,
                           );
                           setNewAction({ ...newAction, exDate: epoch });
                         }}
@@ -1885,7 +1913,7 @@ export default function CorporateActionRecordsPage() {
                         isDisabled={!newAction.exDate}
                         onValueChange={(value) => {
                           const timeStr = epochToUtcTimeString(
-                            newAction.recordDate
+                            newAction.recordDate,
                           );
                           setNewAction({
                             ...newAction,
@@ -1897,7 +1925,7 @@ export default function CorporateActionRecordsPage() {
                         isRequired
                       />
                       <Input
-                        label="Record Time (UTC)"
+                        label="Record Time"
                         type="time"
                         value={epochToUtcTimeString(newAction.recordDate)}
                         isDisabled={!newAction.recordDate}
@@ -1905,27 +1933,51 @@ export default function CorporateActionRecordsPage() {
                           if (!newAction.recordDate) return;
                           const epoch = dateTimeStringToUtcEpoch(
                             epochToDateStr(newAction.recordDate),
-                            value
+                            value,
                           );
                           setNewAction({ ...newAction, recordDate: epoch });
                         }}
                       />
                     </div>
 
-                    <Input
-                      label="Allotment Date"
-                      type="date"
-                      value={addAllotmentDateValue}
-                      min={epochToDateStr(newAction.exDate) || undefined}
-                      isDisabled={!newAction.exDate}
-                      onValueChange={(value) => {
-                        setAddAllotmentDateValue(value);
-                        setNewAction({
-                          ...newAction,
-                          allotmentDate: value ? dateStringToUtcEpoch(value) : null,
-                        });
-                      }}
-                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        label="Allotment Date"
+                        type="date"
+                        value={addAllotmentDateValue}
+                        min={epochToDateStr(newAction.exDate) || undefined}
+                        isDisabled={!newAction.exDate}
+                        onValueChange={(value) => {
+                          setAddAllotmentDateValue(value);
+                          const timeStr = epochToUtcTimeString(
+                            newAction.allotmentDate,
+                          );
+                          setNewAction({
+                            ...newAction,
+                            allotmentDate: value
+                              ? dateTimeStringToUtcEpoch(value, timeStr)
+                              : null,
+                          });
+                        }}
+                      />
+                      <Input
+                        label="Allotment Time"
+                        type="time"
+                        value={epochToUtcTimeString(newAction.allotmentDate)}
+                        isDisabled={!newAction.allotmentDate}
+                        onValueChange={(value) => {
+                          if (!newAction.allotmentDate) return;
+                          const epoch = dateTimeStringToUtcEpoch(
+                            epochToDateStr(newAction.allotmentDate),
+                            value,
+                          );
+                          setNewAction({
+                            ...newAction,
+                            allotmentDate: epoch,
+                          });
+                        }}
+                      />
+                    </div>
                   </div>
 
                   <Textarea

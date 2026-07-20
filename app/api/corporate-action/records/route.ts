@@ -3,7 +3,6 @@ import { callFunction, callProcedure } from "@/utils/db";
 import {
   getCurrentFYEndEpoch,
   getFYStartEpochByYear,
-  setToMorningUTC,
 } from "@/utils/date";
 import { callBulkUpsertCorpActionLogs } from "@/utils/corporateAction";
 import { publishToQueue } from "@/utils/rabbitmq";
@@ -178,12 +177,9 @@ export async function POST(request: NextRequest) {
     }));
 
     // Ex/record date carry a user-selected time (defaults to 8 PM UTC in the UI);
-    // allotment date time is always normalized to 8 AM UTC.
     const adjustedExDate = exDate;
     const adjustedRecordDate = recordDate;
-    const adjustedAllotmentDate = allotmentDate
-      ? setToMorningUTC(allotmentDate)
-      : null;
+    const adjustedAllotmentDate = allotmentDate || null;
 
     // Call the AddCorporateAction procedure
     await callProcedure({
