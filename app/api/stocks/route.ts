@@ -69,12 +69,16 @@ export async function GET(request: NextRequest) {
         searchValue, // p_isin
         searchValue, // p_stock_name
         searchValue, // p_bse_code
-        investmentTypeIds.length > 0 ? investmentTypeIds : null, // p_investment_type
+        null, // p_investment_segments
+        investmentTypeIds.length > 0 ? investmentTypeIds : null, // p_investment_types
         countryId ? parseInt(countryId) : null, // p_country_id
         isListed !== null ? isListed === "true" : null, // p_is_listed
         isActive !== null ? isActive === "true" : true, // p_is_active (default true)
         stockId || null, // p_stock_id
         parentStockId || null, // p_parent_stock_id
+        0, // p_row_start
+        1000, // p_row_limit
+        null, // p_record_date
       ],
     });
 

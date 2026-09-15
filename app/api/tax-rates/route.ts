@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     const legalStatusId = searchParams.get("legalStatusId");
 
     const taxRates = await queryDB<TaxRate>({
-      query: `SELECT * FROM public."FetchTaxRates"(
+      query: `SELECT * FROM public."FetchTaxRatesAdmin"(
         p_country_id := $1,
         p_asset_id := $2,
         p_legal_status_id := $3

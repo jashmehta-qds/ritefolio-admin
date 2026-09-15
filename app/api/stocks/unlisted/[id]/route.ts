@@ -49,6 +49,7 @@ export async function GET(
         null, // isin
         null, // stockName
         null, // bseCode
+        null, // p_investment_segments
         null, // investmentType
         null, // countryId
         false, // p_is_listed = false for unlisted stocks
@@ -57,6 +58,7 @@ export async function GET(
         null, // p_parent_stock_id
         0,    // p_row_start
         1,    // p_row_limit
+        null, // p_record_date
       ],
     });
 
