@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
         isin,
         stockName,
         bseCode,
+        null, // p_investment_segments
         investmentTypeIds.length > 0 ? investmentTypeIds : null,
         countryId,
         true, // p_is_listed = true for listed stocks
@@ -81,6 +82,7 @@ export async function GET(request: NextRequest) {
         null, // p_parent_stock_id
         offset, // p_row_start
         limit, // p_row_limit
+        null, // p_record_date
       ],
     });
 

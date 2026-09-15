@@ -89,9 +89,9 @@ const taxRateValidationSchema = Yup.object({
   legalStatusId: Yup.string().required("Legal status is required"),
   period: Yup.number()
     .typeError("Must be a number")
-    .required("Period is required")
+    .required("Number of Days is required")
     .integer("Must be a whole number")
-    .positive("Must be positive"),
+    .min(0, "Must be 0 or greater"),
   startDate: Yup.string().required("Start date is required"),
   endDate: Yup.string(),
   stcgRate: Yup.number()
@@ -515,8 +515,7 @@ export default function TaxRatesPage() {
           >
             <TableHeader>
               <TableColumn>ID</TableColumn>
-              <TableColumn>INVESTMENT TYPE</TableColumn>
-              <TableColumn>PERIOD</TableColumn>
+              <TableColumn>NUMBER OF DAYS</TableColumn>
               <TableColumn>START DATE</TableColumn>
               <TableColumn>END DATE</TableColumn>
               <TableColumn>STCG %</TableColumn>
@@ -531,17 +530,6 @@ export default function TaxRatesPage() {
               {taxRates.map((taxRate) => (
                 <TableRow key={taxRate.Id + taxRate.ShortCode}>
                   <TableCell>{taxRate.Id}</TableCell>
-                  <TableCell>
-                    <Tooltip content={taxRate.LegalStatus}>
-                      <Chip
-                        size="sm"
-                        variant="dot"
-                        color={getLegalStatusColor(taxRate.LegalStatusId)}
-                      >
-                        {taxRate.ShortCode || "-"}
-                      </Chip>
-                    </Tooltip>
-                  </TableCell>
                   <TableCell>{taxRate.Period}</TableCell>
                   <TableCell>{formatEpochDate(taxRate.StartDate)}</TableCell>
                   <TableCell>
@@ -724,8 +712,8 @@ export default function TaxRatesPage() {
                   {/* Period and Dates */}
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <Input
-                      label="Period"
-                      placeholder="e.g. 2024"
+                      label="Number of Days"
+                      placeholder="e.g. 365"
                       type="number"
                       name="period"
                       value={formik.values.period}
