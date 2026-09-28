@@ -14,13 +14,18 @@ interface Exchange {
   IsActive: boolean;
 }
 
-// GET: Fetch all exchanges using FetchExchange function
-export async function GET() {
+// GET: Fetch all exchanges using FetchExchange function, optionally filtered by country
+export async function GET(request: NextRequest) {
   try {
+    const searchParams = request.nextUrl.searchParams;
+    const countryId = searchParams.get("countryId")
+      ? parseInt(searchParams.get("countryId")!)
+      : null;
+
     const exchanges = await callFunction<Exchange>({
       functionName: 'public."FetchExchange"',
       dbName: process.env.PG_DEFAULT_DB,
-      params: [],
+      params: [countryId], // p_country_id
     });
 
     return NextResponse.json(

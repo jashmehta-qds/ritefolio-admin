@@ -73,6 +73,7 @@ export default function InvestmentTypePage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedType, setSelectedType] = useState<InvestmentType | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [filterSegmentId, setFilterSegmentId] = useState<string>("");
   const router = useRouter();
   const supabase = createClient();
 
@@ -99,7 +100,7 @@ export default function InvestmentTypePage() {
 
         if (result.success) {
           handleCloseModal();
-          fetchTypes();
+          fetchTypes(filterSegmentId);
         } else {
           console.error("Failed to save investment type:", result.error);
           alert(`Error: ${result.message || result.error}`);
@@ -122,17 +123,26 @@ export default function InvestmentTypePage() {
         return;
       }
 
-      fetchTypes();
       fetchSegments();
     };
 
     checkAuth();
   }, [router, supabase.auth]);
 
-  const fetchTypes = async () => {
+  // Fetch types on load and whenever the segment filter changes
+  useEffect(() => {
+    fetchTypes(filterSegmentId);
+  }, [filterSegmentId]);
+
+  const fetchTypes = async (segmentId: string = "") => {
     try {
       setIsLoading(true);
-      const response = await axiosInstance.get("/investment/type");
+      const params = new URLSearchParams();
+      if (segmentId) params.append("investmentSegmentId", segmentId);
+
+      const response = await axiosInstance.get(
+        `/investment/type?${params.toString()}`
+      );
       const result = response.data;
 
       if (result.success) {
@@ -198,7 +208,7 @@ export default function InvestmentTypePage() {
       if (result.success) {
         setIsDeleteModalOpen(false);
         setSelectedType(null);
-        fetchTypes();
+        fetchTypes(filterSegmentId);
       } else {
         console.error("Failed to delete investment type:", result.error);
         alert(`Error: ${result.message || result.error}`);
@@ -221,7 +231,7 @@ export default function InvestmentTypePage() {
     setSelectedType(null);
   };
 
-  if (isLoading) {
+  if (isLoading && types.length === 0 && !filterSegmentId) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
@@ -254,6 +264,35 @@ export default function InvestmentTypePage() {
           </Button>
         </div>
 
+        {/* Filters */}
+        <div className="mb-4 flex flex-wrap items-end gap-3">
+          <Autocomplete
+            aria-label="Filter by segment"
+            placeholder="Filter by segment"
+            selectedKey={filterSegmentId || null}
+            onSelectionChange={(key) =>
+              setFilterSegmentId((key as string) || "")
+            }
+            className="max-w-[200px]"
+            size="md"
+          >
+            {segments.map((segment) => (
+              <AutocompleteItem key={segment.Id.toString()}>
+                {segment.Category}
+              </AutocompleteItem>
+            ))}
+          </Autocomplete>
+          {filterSegmentId && (
+            <Button
+              variant="flat"
+              size="md"
+              onPress={() => setFilterSegmentId("")}
+            >
+              Clear Filters
+            </Button>
+          )}
+        </div>
+
         {/* Type Table */}
         <Table
           aria-label="Investment type table"
@@ -274,7 +313,11 @@ export default function InvestmentTypePage() {
             <TableColumn>STATUS</TableColumn>
             <TableColumn>ACTIONS</TableColumn>
           </TableHeader>
-          <TableBody>
+          <TableBody
+            isLoading={isLoading}
+            loadingContent={<span className="text-default-500">Loading...</span>}
+            emptyContent="No investment types found"
+          >
             {types.map((type) => (
               <TableRow key={type.Id}>
                 <TableCell>{type.Id}</TableCell>
