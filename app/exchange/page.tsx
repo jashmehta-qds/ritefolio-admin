@@ -101,6 +101,7 @@ export default function ExchangePage() {
     null
   );
   const [isDeleting, setIsDeleting] = useState(false);
+  const [filterCountryId, setFilterCountryId] = useState<string>("");
   const router = useRouter();
   const supabase = createClient();
 
@@ -131,7 +132,7 @@ export default function ExchangePage() {
 
         if (result.success) {
           handleCloseModal();
-          fetchExchanges();
+          fetchExchanges(filterCountryId);
         } else {
           console.error("Failed to save exchange:", result.error);
           alert(`Error: ${result.message || result.error}`);
@@ -154,17 +155,26 @@ export default function ExchangePage() {
         return;
       }
 
-      fetchExchanges();
       fetchCountries();
     };
 
     checkAuth();
   }, [router, supabase.auth]);
 
-  const fetchExchanges = async () => {
+  // Fetch exchanges on load and whenever the country filter changes
+  useEffect(() => {
+    fetchExchanges(filterCountryId);
+  }, [filterCountryId]);
+
+  const fetchExchanges = async (countryId: string = "") => {
     try {
       setIsLoading(true);
-      const response = await axiosInstance.get("/exchange");
+      const params = new URLSearchParams();
+      if (countryId) params.append("countryId", countryId);
+
+      const response = await axiosInstance.get(
+        `/exchange?${params.toString()}`
+      );
       const result = response.data;
 
       if (result.success) {
@@ -234,7 +244,7 @@ export default function ExchangePage() {
       if (result.success) {
         setIsDeleteModalOpen(false);
         setSelectedExchange(null);
-        fetchExchanges();
+        fetchExchanges(filterCountryId);
       } else {
         console.error("Failed to delete exchange:", result.error);
         alert(`Error: ${result.message || result.error}`);
@@ -257,7 +267,7 @@ export default function ExchangePage() {
     setSelectedExchange(null);
   };
 
-  if (isLoading) {
+  if (isLoading && exchanges.length === 0 && !filterCountryId) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
@@ -290,6 +300,35 @@ export default function ExchangePage() {
           </Button>
         </div>
 
+        {/* Filters */}
+        <div className="mb-4 flex flex-wrap items-end gap-3">
+          <Autocomplete
+            aria-label="Filter by country"
+            placeholder="Filter by country"
+            selectedKey={filterCountryId || null}
+            onSelectionChange={(key) =>
+              setFilterCountryId((key as string) || "")
+            }
+            className="max-w-[200px]"
+            size="md"
+          >
+            {countries.map((country) => (
+              <AutocompleteItem key={country.Id.toString()}>
+                {country.Name}
+              </AutocompleteItem>
+            ))}
+          </Autocomplete>
+          {filterCountryId && (
+            <Button
+              variant="flat"
+              size="md"
+              onPress={() => setFilterCountryId("")}
+            >
+              Clear Filters
+            </Button>
+          )}
+        </div>
+
         {/* Exchange Table */}
         <Table
           aria-label="Exchange table"
@@ -313,7 +352,11 @@ export default function ExchangePage() {
             <TableColumn>STATUS</TableColumn>
             <TableColumn>ACTIONS</TableColumn>
           </TableHeader>
-          <TableBody>
+          <TableBody
+            isLoading={isLoading}
+            loadingContent={<span className="text-default-500">Loading...</span>}
+            emptyContent="No exchanges found"
+          >
             {exchanges.map((exchange) => (
               <TableRow key={exchange.Id}>
                 <TableCell>{exchange.Id}</TableCell>

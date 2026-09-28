@@ -40,6 +40,7 @@ import {
 } from "react-icons/fi";
 import { createClient } from "@/lib/supabase/client";
 import axiosInstance from "@/lib/axios";
+import InvestmentFilter from "@/components/InvestmentFilter";
 import StockTypeAutocomplete from "@/components/StockTypeAutocomplete";
 import { CountryAutocomplete } from "@/components/CountryAutocomplete";
 
@@ -141,6 +142,9 @@ export default function StagingStocksPage() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCountryId, setFilterCountryId] = useState<string>("");
+  const [filterInvestmentSegments, setFilterInvestmentSegments] = useState<
+    string[]
+  >([]);
   const [filterInvestmentTypes, setFilterInvestmentTypes] = useState<string[]>(
     [],
   );
@@ -202,7 +206,13 @@ export default function StagingStocksPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setCurrentPage(1);
-      fetchStocks(1, searchTerm, filterCountryId, filterInvestmentTypes);
+      fetchStocks(
+        1,
+        searchTerm,
+        filterCountryId,
+        filterInvestmentTypes,
+        filterInvestmentSegments,
+      );
     }, 500);
 
     return () => clearTimeout(timer);
@@ -215,20 +225,28 @@ export default function StagingStocksPage() {
       searchTerm,
       filterCountryId,
       filterInvestmentTypes,
+      filterInvestmentSegments,
     );
   }, [currentPage]);
 
   // Fetch stocks when filters change
   useEffect(() => {
     setCurrentPage(1);
-    fetchStocks(1, searchTerm, filterCountryId, filterInvestmentTypes);
-  }, [filterCountryId, filterInvestmentTypes]);
+    fetchStocks(
+      1,
+      searchTerm,
+      filterCountryId,
+      filterInvestmentTypes,
+      filterInvestmentSegments,
+    );
+  }, [filterCountryId, filterInvestmentTypes, filterInvestmentSegments]);
 
   const fetchStocks = async (
     page: number = 1,
     search: string = "",
     countryId: string = "",
     investmentTypes: string[] = [],
+    investmentSegments: string[] = [],
   ) => {
     try {
       setIsLoading(true);
@@ -245,6 +263,9 @@ export default function StagingStocksPage() {
       }
 
       if (countryId) params.append("countryId", countryId);
+      investmentSegments.forEach((id) =>
+        params.append("investmentSegment", id),
+      );
       investmentTypes.forEach((id) => params.append("investmentType", id));
 
       const response = await axiosInstance.get(
@@ -356,7 +377,13 @@ export default function StagingStocksPage() {
       if (result.success) {
         showToast("Stock added successfully", "success");
         handleCloseModal();
-        fetchStocks(1, searchTerm, filterCountryId, filterInvestmentTypes);
+        fetchStocks(
+          1,
+          searchTerm,
+          filterCountryId,
+          filterInvestmentTypes,
+          filterInvestmentSegments,
+        );
       } else {
         showToast(
           result.message || result.error || "Failed to add stock",
@@ -441,6 +468,7 @@ export default function StagingStocksPage() {
           searchTerm,
           filterCountryId,
           filterInvestmentTypes,
+          filterInvestmentSegments,
         );
       } else {
         showToast(
@@ -482,6 +510,7 @@ export default function StagingStocksPage() {
           searchTerm,
           filterCountryId,
           filterInvestmentTypes,
+          filterInvestmentSegments,
         );
       } else {
         showToast(
@@ -535,6 +564,7 @@ export default function StagingStocksPage() {
         {/* Search and Filters */}
         <div className="mb-4 flex flex-wrap items-end gap-3">
           <Input
+            aria-label="Search stocks"
             placeholder="Search by name, symbol, ISIN, or BSE code..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -542,6 +572,7 @@ export default function StagingStocksPage() {
             className="max-w-md"
           />
           <Autocomplete
+            aria-label="Filter by country"
             placeholder="Filter by country"
             selectedKey={filterCountryId || null}
             onSelectionChange={(key) =>
@@ -556,32 +587,22 @@ export default function StagingStocksPage() {
               </AutocompleteItem>
             ))}
           </Autocomplete>
-          <Select
-            placeholder="Filter by investment type"
-            selectionMode="multiple"
-            selectedKeys={new Set(filterInvestmentTypes)}
-            onSelectionChange={(keys) => {
-              if (keys === "all") return;
-              setFilterInvestmentTypes(Array.from(keys as Set<string>));
-            }}
-            className="max-w-[220px]"
-            size="md"
-          >
-            {investmentTypes.map((type) => (
-              <SelectItem
-                key={type.Id.toString()}
-                textValue={`${type.ShortCode} - ${type.InvestmentCategory}`}
-              >
-                {type.ShortCode} - {type.InvestmentCategory}
-              </SelectItem>
-            ))}
-          </Select>
-          {(filterCountryId || filterInvestmentTypes.length > 0) && (
+          <InvestmentFilter
+            investmentTypes={investmentTypes}
+            selectedSegments={filterInvestmentSegments}
+            selectedTypes={filterInvestmentTypes}
+            onSegmentsChange={setFilterInvestmentSegments}
+            onTypesChange={setFilterInvestmentTypes}
+          />
+          {(filterCountryId ||
+            filterInvestmentSegments.length > 0 ||
+            filterInvestmentTypes.length > 0) && (
             <Button
               variant="flat"
               size="md"
               onPress={() => {
                 setFilterCountryId("");
+                setFilterInvestmentSegments([]);
                 setFilterInvestmentTypes([]);
               }}
             >

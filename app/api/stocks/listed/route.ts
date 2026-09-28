@@ -48,6 +48,10 @@ export async function GET(request: NextRequest) {
       .getAll("investmentType")
       .map(Number)
       .filter((n) => !isNaN(n));
+    const investmentSegmentIds = searchParams
+      .getAll("investmentSegment")
+      .map(Number)
+      .filter((n) => !isNaN(n));
     const countryId = searchParams.get("countryId")
       ? parseInt(searchParams.get("countryId")!)
       : null;
@@ -73,7 +77,7 @@ export async function GET(request: NextRequest) {
         isin,
         stockName,
         bseCode,
-        null, // p_investment_segments
+        investmentSegmentIds.length > 0 ? investmentSegmentIds : null, // p_investment_segments
         investmentTypeIds.length > 0 ? investmentTypeIds : null,
         countryId,
         true, // p_is_listed = true for listed stocks

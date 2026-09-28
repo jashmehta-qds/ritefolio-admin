@@ -10,13 +10,18 @@ interface InvestmentType {
   IsActive: boolean;
 }
 
-// GET: Fetch all investment types using FetchInvestmentTypes function
-export async function GET() {
+// GET: Fetch all investment types using FetchInvestmentTypes function, optionally filtered by segment
+export async function GET(request: NextRequest) {
   try {
+    const searchParams = request.nextUrl.searchParams;
+    const investmentSegmentId = searchParams.get("investmentSegmentId")
+      ? parseInt(searchParams.get("investmentSegmentId")!)
+      : null;
+
     const types = await callFunction<InvestmentType>({
       functionName: 'public."FetchInvestmentTypes"',
       dbName: process.env.PG_DEFAULT_DB,
-      params: [],
+      params: [investmentSegmentId], // p_investment_segment_id
     });
 
     return NextResponse.json(
