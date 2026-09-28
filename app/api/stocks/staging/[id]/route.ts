@@ -50,6 +50,7 @@ export async function GET(
         null, // isin
         null, // stockName
         null, // bseCode
+        null, // p_investment_segments
         null, // investmentType
         null, // countryId
         null, // isActive (fetch both active and inactive)

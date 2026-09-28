@@ -51,6 +51,10 @@ export async function GET(request: NextRequest) {
         .filter((n) => !isNaN(n));
       return ids.length > 0 ? ids[0] : null;
     })();
+    const investmentSegmentIds = searchParams
+      .getAll("investmentSegment")
+      .map(Number)
+      .filter((n) => !isNaN(n));
     const countryId = searchParams.get("countryId")
       ? parseInt(searchParams.get("countryId")!)
       : null;
@@ -76,6 +80,7 @@ export async function GET(request: NextRequest) {
         isin,
         stockName,
         bseCode,
+        investmentSegmentIds.length > 0 ? investmentSegmentIds : null, // p_investment_segments
         investmentType,
         countryId,
         isActive,

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useSidebar } from '@/components/navigations/SidebarContext'
 
 interface MainContentWrapperProps {
   children: React.ReactNode
@@ -9,6 +10,7 @@ interface MainContentWrapperProps {
 
 export const MainContentWrapper = ({ children }: MainContentWrapperProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const { isCollapsed } = useSidebar()
   const supabase = createClient()
 
   useEffect(() => {
@@ -30,7 +32,11 @@ export const MainContentWrapper = ({ children }: MainContentWrapperProps) => {
   }, [supabase.auth])
 
   return (
-    <main className={`flex-grow ${isAuthenticated ? 'lg:ml-64' : ''}`}>
+    <main
+      className={`flex-grow transition-[margin] duration-300 ${
+        isAuthenticated ? (isCollapsed ? 'lg:ml-20' : 'lg:ml-64') : ''
+      }`}
+    >
       {children}
     </main>
   )

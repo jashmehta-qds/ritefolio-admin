@@ -6,8 +6,17 @@ import NextLink from "next/link";
 import { Accordion, AccordionItem } from "@heroui/accordion";
 import { Button } from "@heroui/button";
 import { Tooltip } from "@heroui/tooltip";
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownSection,
+  DropdownItem,
+} from "@heroui/dropdown";
+import { Popover, PopoverTrigger, PopoverContent } from "@heroui/popover";
 import { createClient } from "@/lib/supabase/client";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
+import { useSidebar } from "./SidebarContext";
 import {
   FiHome,
   FiFileText,
@@ -22,6 +31,9 @@ import {
   FiActivity,
   FiTrendingUp,
   FiPercent,
+  FiChevronsLeft,
+  FiChevronsRight,
+  FiMoreHorizontal,
 } from "react-icons/fi";
 import { LiaExchangeAltSolid } from "react-icons/lia";
 
@@ -139,6 +151,8 @@ interface SidebarProps {
 export const Sidebar = ({ isOpen = true, onClose }: SidebarProps) => {
   const pathname = usePathname();
   const router = useRouter();
+  // Collapse applies only on desktop (lg+); the mobile drawer always shows full width
+  const { isCollapsed, toggleCollapsed } = useSidebar();
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set(["0"]));
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState<string>("");
@@ -236,26 +250,80 @@ export const Sidebar = ({ isOpen = true, onClose }: SidebarProps) => {
     return null;
   }
 
+  // Hides an element only when collapsed on desktop
+  const hideWhenCollapsed = isCollapsed ? "lg:hidden" : "";
+
   const renderNavigationItem = (item: NavigationItem) => {
     const active = isActive(item.href);
 
     return (
-      <NextLink
+      <Tooltip
         key={item.href}
-        href={item.href}
-        className={`
-          flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200
-          ${
-            active
-              ? "bg-primary text-primary-foreground shadow-lg"
-              : "text-default-700 hover:bg-default-100 hover:text-default-900"
-          }
-        `}
-        onClick={onClose}
+        content={item.label}
+        placement="right"
+        size="sm"
+        isDisabled={!isCollapsed}
       >
-        {item.icon}
-        <span className="font-medium">{item.label}</span>
-      </NextLink>
+        <NextLink
+          href={item.href}
+          aria-label={item.label}
+          className={`
+            flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200
+            ${isCollapsed ? "lg:justify-center lg:px-0" : ""}
+            ${
+              active
+                ? "bg-primary text-primary-foreground shadow-lg"
+                : "text-default-700 hover:bg-default-100 hover:text-default-900"
+            }
+          `}
+          onClick={onClose}
+        >
+          {item.icon}
+          <span className={`font-medium ${hideWhenCollapsed}`}>
+            {item.label}
+          </span>
+        </NextLink>
+      </Tooltip>
+    );
+  };
+
+  // Collapsed desktop view: group icon opens a menu of its links
+  const renderCollapsedGroup = (group: NavigationGroup) => {
+    const hasActiveChild = group.items.some((item) => isActive(item.href));
+
+    return (
+      <Dropdown placement="right-start">
+        <DropdownTrigger>
+          <Button
+            isIconOnly
+            variant="light"
+            aria-label={group.label}
+            className={`w-full h-11 rounded-lg ${
+              hasActiveChild
+                ? "text-primary bg-primary/10"
+                : "text-default-700 hover:bg-default-100"
+            }`}
+          >
+            {group.icon}
+          </Button>
+        </DropdownTrigger>
+        <DropdownMenu aria-label={`${group.label} links`}>
+          <DropdownSection title={group.label}>
+            {group.items.map((item) => (
+              <DropdownItem
+                key={item.href}
+                href={item.href}
+                startContent={item.icon}
+                className={
+                  isActive(item.href) ? "text-primary font-semibold" : ""
+                }
+              >
+                {item.label}
+              </DropdownItem>
+            ))}
+          </DropdownSection>
+        </DropdownMenu>
+      </Dropdown>
     );
   };
 
@@ -263,41 +331,45 @@ export const Sidebar = ({ isOpen = true, onClose }: SidebarProps) => {
     const hasActiveChild = group.items.some((item) => isActive(item.href));
 
     return (
-      <Accordion
-        key={index}
-        selectedKeys={expandedKeys}
-        onSelectionChange={(keys) => setExpandedKeys(keys as Set<string>)}
-        className="px-0"
-        itemClasses={{
-          base: "px-0",
-          title: "text-default-700 font-medium",
-          trigger:
-            "px-4 py-2.5 rounded-lg hover:bg-default-100 data-[hover=true]:bg-default-100",
-          content: "px-0 pt-2 pb-1",
-        }}
-      >
-        <AccordionItem
-          key={index.toString()}
-          aria-label={group.label}
-          title={
-            <div className="flex items-center gap-3">
-              {group.icon}
-              <span>{group.label}</span>
-            </div>
-          }
-          indicator={<FiChevronDown className="text-default-500" />}
-          classNames={{
-            title: hasActiveChild ? "text-primary" : "text-default-700",
-          }}
-        >
-          <div className="flex flex-col gap-1 pl-4">
-            {group.items.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <NextLink
-                  key={item.href}
-                  href={item.href}
-                  className={`
+      <div key={index}>
+        {isCollapsed && (
+          <div className="hidden lg:block">{renderCollapsedGroup(group)}</div>
+        )}
+        <div className={hideWhenCollapsed}>
+          <Accordion
+            selectedKeys={expandedKeys}
+            onSelectionChange={(keys) => setExpandedKeys(keys as Set<string>)}
+            className="px-0"
+            itemClasses={{
+              base: "px-0",
+              title: "text-default-700 font-medium",
+              trigger:
+                "px-4 py-2.5 rounded-lg hover:bg-default-100 data-[hover=true]:bg-default-100",
+              content: "px-0 pt-2 pb-1",
+            }}
+          >
+            <AccordionItem
+              key={index.toString()}
+              aria-label={group.label}
+              title={
+                <div className="flex items-center gap-3">
+                  {group.icon}
+                  <span>{group.label}</span>
+                </div>
+              }
+              indicator={<FiChevronDown className="text-default-500" />}
+              classNames={{
+                title: hasActiveChild ? "text-primary" : "text-default-700",
+              }}
+            >
+              <div className="flex flex-col gap-1 pl-4">
+                {group.items.map((item) => {
+                  const active = isActive(item.href);
+                  return (
+                    <NextLink
+                      key={item.href}
+                      href={item.href}
+                      className={`
                     flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200
                     ${
                       active
@@ -305,37 +377,71 @@ export const Sidebar = ({ isOpen = true, onClose }: SidebarProps) => {
                         : "text-default-600 hover:bg-default-50 hover:text-default-900"
                     }
                   `}
-                  onClick={onClose}
-                >
-                  {item.icon}
-                  <span className="text-sm">{item.label}</span>
-                </NextLink>
-              );
-            })}
-          </div>
-        </AccordionItem>
-      </Accordion>
+                      onClick={onClose}
+                    >
+                      {item.icon}
+                      <span className="text-sm">{item.label}</span>
+                    </NextLink>
+                  );
+                })}
+              </div>
+            </AccordionItem>
+          </Accordion>
+        </div>
+      </div>
     );
   };
 
   return (
     <aside
       className={`
-        fixed left-0 top-0 bottom-0 w-64
+        fixed left-0 top-0 bottom-0 w-64 ${isCollapsed ? "lg:w-20" : ""}
         bg-background border-r border-default-200
-        transition-transform duration-300 z-40
+        transition-[transform,width] duration-300 z-40
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
         lg:translate-x-0 overflow-hidden
       `}
     >
       <div className="flex flex-col h-full">
         {/* Sidebar Header */}
-        <div className="flex-shrink-0 px-6 py-4 border-b border-default-200">
-          <h1 className="text-xl font-bold text-foreground">Ritefolio Admin</h1>
+        <div
+          className={`flex-shrink-0 flex items-center justify-between gap-2 px-6 py-4 border-b border-default-200 ${
+            isCollapsed ? "lg:justify-center lg:px-0" : ""
+          }`}
+        >
+          <h1
+            className={`text-xl font-bold text-foreground whitespace-nowrap ${hideWhenCollapsed}`}
+          >
+            Ritefolio Admin
+          </h1>
+          <Tooltip
+            content={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            placement="right"
+            size="sm"
+          >
+            <Button
+              isIconOnly
+              variant="light"
+              size="sm"
+              className="hidden lg:flex text-default-500"
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              onPress={toggleCollapsed}
+            >
+              {isCollapsed ? (
+                <FiChevronsRight className="text-lg" />
+              ) : (
+                <FiChevronsLeft className="text-lg" />
+              )}
+            </Button>
+          </Tooltip>
         </div>
 
         {/* Navigation Items - Scrollable */}
-        <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-1 scrollbar-thin scrollbar-thumb-default-300 scrollbar-track-transparent">
+        <nav
+          className={`flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 space-y-1 scrollbar-thin scrollbar-thumb-default-300 scrollbar-track-transparent ${
+            isCollapsed ? "lg:px-3" : ""
+          }`}
+        >
           {navigationConfig.map((item, index) => {
             if (isNavigationGroup(item)) {
               return renderNavigationGroup(item, index);
@@ -345,8 +451,64 @@ export const Sidebar = ({ isOpen = true, onClose }: SidebarProps) => {
         </nav>
 
         {/* Sidebar Footer - Fixed at bottom */}
-        <div className="flex-shrink-0 px-4 py-3 border-t border-default-200 bg-background">
-          <div className="flex items-center gap-2">
+        <div
+          className={`flex-shrink-0 px-4 py-3 border-t border-default-200 bg-background ${
+            isCollapsed ? "lg:px-2" : ""
+          }`}
+        >
+          {/* Collapsed desktop view: profile, theme and logout behind one menu */}
+          {isCollapsed && (
+            <div className="hidden lg:flex justify-center">
+              <Popover placement="right-end" offset={16}>
+                <PopoverTrigger>
+                  <Button
+                    isIconOnly
+                    variant="light"
+                    size="sm"
+                    aria-label="Account menu"
+                    className="text-default-500"
+                  >
+                    <FiMoreHorizontal className="text-lg" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-60 p-0">
+                  <div className="w-full">
+                    <div className="flex items-center gap-3 px-4 py-3 border-b border-default-200">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                        {userInitials}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground truncate">
+                          {userName || "Admin"}
+                        </p>
+                        <p className="text-xs text-default-400 truncate">
+                          {userEmail}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-default-200">
+                      <span className="text-sm text-default-700">Theme</span>
+                      <ThemeSwitch />
+                    </div>
+                    <div className="p-2">
+                      <Button
+                        fullWidth
+                        color="danger"
+                        variant="flat"
+                        size="sm"
+                        startContent={<FiLogOut />}
+                        onPress={handleLogout}
+                      >
+                        Logout
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+
+          <div className={`flex items-center gap-2 ${hideWhenCollapsed}`}>
             {/* Avatar + user info */}
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-xs font-bold flex-shrink-0">

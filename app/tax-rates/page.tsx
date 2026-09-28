@@ -33,8 +33,6 @@ import { CountryAutocomplete } from "@/components/CountryAutocomplete";
 
 interface TaxRate {
   Id: number;
-  InvestmentTypeId: number;
-  ShortCode: string;
   CountryId: number;
   ResidentCountryId: number | null;
   Country: string;
@@ -528,7 +526,7 @@ export default function TaxRatesPage() {
             </TableHeader>
             <TableBody emptyContent="No tax rates found for the selected filters.">
               {taxRates.map((taxRate) => (
-                <TableRow key={taxRate.Id + taxRate.ShortCode}>
+                <TableRow key={taxRate.Id}>
                   <TableCell>{taxRate.Id}</TableCell>
                   <TableCell>{taxRate.Period}</TableCell>
                   <TableCell>{formatEpochDate(taxRate.StartDate)}</TableCell>
