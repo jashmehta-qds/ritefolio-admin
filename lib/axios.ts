@@ -26,6 +26,16 @@ axiosInstance.interceptors.response.use(
   },
   (error) => {
     // Handle errors globally
+    const status = error.response?.status;
+    if (
+      (status === 401 || status === 403) &&
+      typeof window !== "undefined" &&
+      window.location.pathname !== "/"
+    ) {
+      // Session is missing, expired, or not an administrator
+      window.location.href = status === 403 ? "/?error=forbidden" : "/";
+    }
+
     if (error.response) {
       // Server responded with error status
       console.error("API Error:", error.response.data);

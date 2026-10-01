@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/admin";
+import { safeErrorMessage, clampLimit, parsePage } from "@/lib/api/errors";
 import { callFunction } from "@/utils/db";
 
 interface Stock {
@@ -38,6 +40,9 @@ interface Stock {
 
 // GET: Fetch all staging stocks using FetchStagingStocks function with pagination
 export async function GET(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const symbol = searchParams.get("symbol") || null;
@@ -64,12 +69,8 @@ export async function GET(request: NextRequest) {
         : true;
 
     // Pagination parameters
-    const page = searchParams.get("page")
-      ? parseInt(searchParams.get("page")!)
-      : 1;
-    const limit = searchParams.get("limit")
-      ? parseInt(searchParams.get("limit")!)
-      : 50;
+    const page = parsePage(searchParams.get("page"));
+    const limit = clampLimit(searchParams.get("limit"));
     const offset = (page - 1) * limit;
 
     const stocks = await callFunction<Stock>({
@@ -109,7 +110,7 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: "Failed to fetch staging stocks",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 },
     );
@@ -118,6 +119,9 @@ export async function GET(request: NextRequest) {
 
 // POST: Add a new staging stock using InsertStockStaging procedure
 export async function POST(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const body = await request.json();
     const { symbol, isin, bseCode, stockName, countryId, createdBy } = body;
@@ -161,7 +165,7 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error: "Failed to add staging stock",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 },
     );

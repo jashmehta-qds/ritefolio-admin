@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/admin";
+import { safeErrorMessage } from "@/lib/api/errors";
 import { callProcedure } from "@/utils/db";
 import { callBulkUpsertCorpActionLogs } from "@/utils/corporateAction";
 
@@ -17,6 +19,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const { id: recordId } = await params;
     const body: UpdateRecordParams = await request.json();
@@ -73,7 +78,7 @@ export async function PUT(
       {
         success: false,
         error: "Failed to update corporate action record",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 },
     );
@@ -85,6 +90,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const { id: recordId } = await params;
 
@@ -139,7 +147,7 @@ export async function DELETE(
       {
         success: false,
         error: "Failed to delete corporate action record",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 },
     );

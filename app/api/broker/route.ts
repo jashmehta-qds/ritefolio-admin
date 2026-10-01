@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/admin";
+import { safeErrorMessage } from "@/lib/api/errors";
 import { callProcedure, callFunction } from "@/utils/db";
 
 interface Broker {
@@ -14,6 +16,9 @@ interface Broker {
 
 // GET: Fetch all brokers using FetchStockBroker function
 export async function GET() {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const brokers = await callFunction<Broker>({
       functionName: 'public."FetchStockBroker"',
@@ -34,7 +39,7 @@ export async function GET() {
       {
         success: false,
         error: "Failed to fetch brokers",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 }
     );
@@ -43,6 +48,9 @@ export async function GET() {
 
 // POST: Create a new broker
 export async function POST(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const body = await request.json();
     const {
@@ -85,7 +93,7 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error: "Failed to create broker",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 }
     );

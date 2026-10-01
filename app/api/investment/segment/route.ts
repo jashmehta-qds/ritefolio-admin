@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/admin";
+import { safeErrorMessage } from "@/lib/api/errors";
 import { callProcedure, callFunction } from "@/utils/db";
 
 interface InvestmentSegment {
@@ -10,6 +12,9 @@ interface InvestmentSegment {
 
 // GET: Fetch all investment segments using FetchInvestmentSegments function
 export async function GET(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const isActiveParam = searchParams.get("isActive");
@@ -35,7 +40,7 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: "Failed to fetch investment segments",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 }
     );
@@ -44,6 +49,9 @@ export async function GET(request: NextRequest) {
 
 // POST: Create a new investment segment using InsertInvestmentSegment procedure
 export async function POST(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const body = await request.json();
     const { category, description, isActive = true } = body;
@@ -80,7 +88,7 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error: "Failed to create investment segment",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 }
     );

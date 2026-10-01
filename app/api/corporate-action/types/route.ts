@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/admin";
+import { safeErrorMessage } from "@/lib/api/errors";
 import { callFunction } from "@/utils/db";
 
 interface CorporateActionType {
@@ -16,6 +18,9 @@ interface CorporateActionType {
 
 // GET: Fetch all corporate action types using FetchCorporateActionType function
 export async function GET() {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const corporateActionTypes = await callFunction<CorporateActionType>({
       functionName: 'public."FetchCorporateActionType"',
@@ -36,7 +41,7 @@ export async function GET() {
       {
         success: false,
         error: "Failed to fetch corporate action types",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 }
     );

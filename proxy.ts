@@ -1,5 +1,24 @@
 import { createServerClient } from "@supabase/ssr";
+import type { User } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
+import { evaluateAdminAccess } from "@/lib/auth/access";
+import { accessDeniedResponse } from "@/lib/auth/admin";
+import { supabaseCookieOptions } from "@/lib/supabase/options";
+
+const NO_STORE = "no-store, private";
+
+function clearAuthCookies(request: NextRequest, response: NextResponse) {
+  request.cookies
+    .getAll()
+    .filter(({ name }) => name.startsWith("sb-"))
+    .forEach(({ name }) => response.cookies.delete(name));
+  return response;
+}
+
+function copyCookies(from: NextResponse, to: NextResponse) {
+  from.cookies.getAll().forEach((cookie) => to.cookies.set(cookie));
+  return to;
+}
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({
@@ -12,6 +31,7 @@ export async function proxy(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      cookieOptions: supabaseCookieOptions,
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -31,27 +51,59 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  // Check if user is authenticated
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const isLoginPage = request.nextUrl.pathname === "/";
-  const isDashboardRoute = request.nextUrl.pathname.startsWith("/dashboard");
-
-  // If user is logged in and trying to access login page, redirect to dashboard
-  if (user && isLoginPage) {
-    const dashboardUrl = new URL("/dashboard", request.url);
-    return NextResponse.redirect(dashboardUrl);
+  // Malformed or tampered auth cookies must fail closed as unauthenticated
+  // instead of surfacing a 500.
+  let user: User | null = null;
+  let hasInvalidSession = false;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch {
+    hasInvalidSession = true;
   }
 
-  // If user is not logged in and trying to access dashboard, redirect to login
-  if (!user && isDashboardRoute) {
-    const loginUrl = new URL("/", request.url);
-    return NextResponse.redirect(loginUrl);
+  const access = evaluateAdminAccess(user);
+  const { pathname } = request.nextUrl;
+  const isLoginPage = pathname === "/";
+  const isApiRoute = pathname === "/api" || pathname.startsWith("/api/");
+
+  if (access === "granted") {
+    if (isLoginPage) {
+      return copyCookies(
+        response,
+        NextResponse.redirect(new URL("/dashboard", request.url))
+      );
+    }
+    response.headers.set("Cache-Control", NO_STORE);
+    return response;
   }
 
-  return response;
+  // Non-admin or expired sessions are revoked so they cannot be reused here.
+  if (access === "forbidden" || access === "expired") {
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch {
+      // Cookies are cleared below regardless.
+    }
+  }
+  const shouldClearCookies = access !== "anonymous" || hasInvalidSession;
+
+  // Deny API access before any handler parses the request.
+  if (isApiRoute) {
+    const denied = accessDeniedResponse(access);
+    return shouldClearCookies ? clearAuthCookies(request, denied) : denied;
+  }
+
+  if (isLoginPage) {
+    return shouldClearCookies ? clearAuthCookies(request, response) : response;
+  }
+
+  const loginUrl = new URL("/", request.url);
+  if (access === "forbidden" || access === "expired") {
+    loginUrl.searchParams.set("error", access);
+  }
+  const redirect = NextResponse.redirect(loginUrl);
+  return shouldClearCookies ? clearAuthCookies(request, redirect) : redirect;
 }
 
 export const config = {

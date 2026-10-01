@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/admin";
+import { safeErrorMessage } from "@/lib/api/errors";
 import { callFunction, callProcedure } from "@/utils/db";
 import { callBulkUpsertCorpActionLogs } from "@/utils/corporateAction";
 
@@ -25,6 +27,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const { id } = await params;
 
@@ -64,7 +69,7 @@ export async function GET(
       {
         success: false,
         error: "Failed to fetch corporate action details",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 }
     );
@@ -76,6 +81,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -156,7 +164,7 @@ export async function POST(
       {
         success: false,
         error: "Failed to add corporate action detail",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 }
     );

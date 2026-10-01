@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/admin";
+import { safeErrorMessage, clampLimit } from "@/lib/api/errors";
 import { callFunction } from "@/utils/db";
 
 export interface Stock {
@@ -38,6 +40,9 @@ export interface Stock {
 
 // GET: Search stocks using FetchStocks function
 export async function GET(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const searchParams = request.nextUrl.searchParams;
 
@@ -56,7 +61,7 @@ export async function GET(request: NextRequest) {
     const isActive = searchParams.get("isActive");
     const stockId = searchParams.get("stockId");
     const parentStockId = searchParams.get("parentStockId");
-    const limit = parseInt(searchParams.get("limit") || "50");
+    const limit = clampLimit(searchParams.get("limit"));
 
     // If search parameter is provided, use it for all searchable fields
     const searchValue = search || symbol || isin || stockName || bseCode || null;
@@ -99,7 +104,7 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: "Failed to fetch stocks",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 }
     );

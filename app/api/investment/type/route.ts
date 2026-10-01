@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/admin";
+import { safeErrorMessage } from "@/lib/api/errors";
 import { callProcedure, callFunction } from "@/utils/db";
 
 interface InvestmentType {
@@ -12,6 +14,9 @@ interface InvestmentType {
 
 // GET: Fetch all investment types using FetchInvestmentTypes function, optionally filtered by segment
 export async function GET(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const investmentSegmentId = searchParams.get("investmentSegmentId")
@@ -37,7 +42,7 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: "Failed to fetch investment types",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 }
     );
@@ -46,6 +51,9 @@ export async function GET(request: NextRequest) {
 
 // POST: Create a new investment type using InsertInvestmentType procedure
 export async function POST(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const body = await request.json();
     const {
@@ -93,7 +101,7 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error: "Failed to create investment type",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 }
     );

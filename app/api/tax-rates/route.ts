@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/admin";
+import { safeErrorMessage } from "@/lib/api/errors";
 import { queryDB } from "@/utils/db";
 
 interface TaxRate {
@@ -28,6 +30,9 @@ interface TaxRate {
 
 // GET: Fetch tax rates, optionally filtered by countryId and legalStatusId
 export async function GET(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const { searchParams } = new URL(request.url);
     const countryId = searchParams.get("countryId");
@@ -58,7 +63,7 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: "Failed to fetch tax rates",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 },
     );
@@ -67,6 +72,9 @@ export async function GET(request: NextRequest) {
 
 // POST: Create a new tax rate
 export async function POST(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const body = await request.json();
     const {
@@ -138,7 +146,7 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error: "Failed to create tax rate",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 },
     );
