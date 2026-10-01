@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/admin";
+import { safeErrorMessage } from "@/lib/api/errors";
 import { callFunction, callProcedure } from "@/utils/db";
 import {
   getCurrentFYEndEpoch,
@@ -26,6 +28,9 @@ interface CorporateActionRecord {
 
 // GET: Fetch corporate action records using FetchCorpActionRecords function
 export async function GET(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const searchParams = request.nextUrl.searchParams;
 
@@ -115,7 +120,7 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: "Failed to fetch corporate action records",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 }
     );
@@ -124,6 +129,9 @@ export async function GET(request: NextRequest) {
 
 // POST: Add a new corporate action with details using AddCorporateAction procedure
 export async function POST(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const body = await request.json();
     const {
@@ -257,7 +265,7 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error: "Failed to add corporate action",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 }
     );

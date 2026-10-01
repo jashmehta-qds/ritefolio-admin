@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/admin";
+import { safeErrorMessage, clampLimit, parsePage } from "@/lib/api/errors";
 import { callFunction, callProcedure } from "@/utils/db";
 
 interface Stock {
@@ -38,6 +40,9 @@ interface Stock {
 
 // GET: Fetch all unlisted stocks using FetchStocks function with p_is_listed = false
 export async function GET(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const symbol = searchParams.get("symbol") || null;
@@ -61,12 +66,8 @@ export async function GET(request: NextRequest) {
         : true;
 
     // Pagination parameters
-    const page = searchParams.get("page")
-      ? parseInt(searchParams.get("page")!)
-      : 1;
-    const limit = searchParams.get("limit")
-      ? parseInt(searchParams.get("limit")!)
-      : 50;
+    const page = parsePage(searchParams.get("page"));
+    const limit = clampLimit(searchParams.get("limit"));
     const offset = (page - 1) * limit;
 
     const stocks = await callFunction<Stock>({
@@ -108,7 +109,7 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: "Failed to fetch unlisted stocks",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 },
     );
@@ -117,6 +118,9 @@ export async function GET(request: NextRequest) {
 
 // POST: Add a new unlisted stock using InsertStockStaging_v1 procedure
 export async function POST(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const body = await request.json();
     const {
@@ -209,7 +213,7 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error: "Failed to add unlisted stock",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 },
     );

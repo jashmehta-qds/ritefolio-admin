@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/admin";
+import { safeErrorMessage } from "@/lib/api/errors";
 import { callProcedure, callFunction } from "@/utils/db";
 
 interface Country {
@@ -14,6 +16,9 @@ interface Country {
 
 // GET: Fetch all countries using FetchCountries function
 export async function GET(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const isActiveParam = searchParams.get("isActive");
@@ -39,7 +44,7 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: "Failed to fetch countries",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 },
     );
@@ -48,6 +53,9 @@ export async function GET(request: NextRequest) {
 
 // POST: Create a new country using InsertCountry procedure
 export async function POST(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const body = await request.json();
     const { name, isoCode, currencyCode, countryCode, isActive = true } = body;
@@ -84,7 +92,7 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error: "Failed to create country",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 },
     );

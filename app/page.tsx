@@ -1,12 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { createClient } from "@/lib/supabase/client";
+import { isAdminUser } from "@/lib/auth/access";
 import { FaRegEye, FaRegEyeSlash } from "react-icons/fa";
+
+const SESSION_ERRORS = {
+  forbidden: "This account does not have administrator access.",
+  expired: "Your session has expired. Please sign in again.",
+};
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -16,6 +22,13 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const router = useRouter();
   const supabase = createClient();
+
+  useEffect(() => {
+    const reason = new URLSearchParams(window.location.search).get("error");
+    if (reason && reason in SESSION_ERRORS) {
+      setError(SESSION_ERRORS[reason as keyof typeof SESSION_ERRORS]);
+    }
+  }, []);
 
   const togglePasswordVisibility = () =>
     setIsPasswordVisible(!isPasswordVisible);
@@ -33,6 +46,13 @@ export default function LoginPage() {
 
       if (error) {
         setError(error.message);
+        setIsLoading(false);
+        return;
+      }
+
+      if (data.user && !isAdminUser(data.user)) {
+        await supabase.auth.signOut({ scope: "local" });
+        setError(SESSION_ERRORS.forbidden);
         setIsLoading(false);
         return;
       }

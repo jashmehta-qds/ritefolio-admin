@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/admin";
+import { safeErrorMessage } from "@/lib/api/errors";
 import { queryDB, callFunction, callProcedure } from "@/utils/db";
 
 interface Broker {
@@ -17,6 +19,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const { id: idStr } = await params;
     const id = parseInt(idStr);
@@ -52,7 +57,7 @@ export async function GET(
       {
         success: false,
         error: "Failed to fetch broker",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 }
     );
@@ -64,6 +69,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const { id: idStr } = await params;
     const id = parseInt(idStr);
@@ -102,7 +110,7 @@ export async function PUT(
       {
         success: false,
         error: "Failed to update broker",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 }
     );
@@ -114,6 +122,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const { id } = await params;
 
@@ -136,7 +147,7 @@ export async function DELETE(
       {
         success: false,
         error: "Failed to delete broker",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 }
     );

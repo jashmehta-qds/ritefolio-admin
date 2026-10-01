@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/admin";
+import { safeErrorMessage } from "@/lib/api/errors";
 import { queryDB } from "@/utils/db";
 
 interface TaxAssetClass {
@@ -11,6 +13,9 @@ interface TaxAssetClass {
 }
 
 export async function GET() {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const assets = await queryDB<TaxAssetClass>({
       query: `SELECT * FROM public."FetchTaxAssetClass"(NULL, true)`,
@@ -27,7 +32,7 @@ export async function GET() {
       {
         success: false,
         error: "Failed to fetch tax asset classes",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: safeErrorMessage(error),
       },
       { status: 500 }
     );
