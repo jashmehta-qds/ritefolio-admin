@@ -34,6 +34,7 @@ import {
   FiChevronsLeft,
   FiChevronsRight,
   FiMoreHorizontal,
+  FiUsers,
 } from "react-icons/fi";
 import { LiaExchangeAltSolid } from "react-icons/lia";
 
@@ -56,6 +57,11 @@ const navigationConfig: NavigationConfig = [
     label: "Dashboard",
     href: "/dashboard",
     icon: <FiHome className="text-xl" />,
+  },
+  {
+    label: "Users",
+    href: "/users",
+    icon: <FiUsers className="text-xl" />,
   },
   {
     label: "Currency",
