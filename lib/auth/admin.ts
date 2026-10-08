@@ -18,6 +18,17 @@ export function accessDeniedResponse(access: Exclude<AdminAccess, "granted">) {
  * not an authenticated administrator, otherwise null.
  */
 export async function requireAdmin(): Promise<NextResponse | null> {
+  const { denied } = await requireAdminUser();
+  return denied;
+}
+
+/**
+ * Like requireAdmin, but also returns the authenticated administrator -- for
+ * handlers that record who made a change. Exactly one of the fields is set.
+ */
+export async function requireAdminUser(): Promise<
+  { user: User; denied: null } | { user: null; denied: NextResponse }
+> {
   let user: User | null = null;
 
   try {
@@ -30,5 +41,9 @@ export async function requireAdmin(): Promise<NextResponse | null> {
   }
 
   const access = evaluateAdminAccess(user);
-  return access === "granted" ? null : accessDeniedResponse(access);
+  if (access === "granted" && user) return { user, denied: null };
+  return {
+    user: null,
+    denied: accessDeniedResponse(access === "granted" ? "anonymous" : access),
+  };
 }
